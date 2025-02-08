@@ -1,0 +1,20 @@
+https://github.com/mir-aidj/all-in-one
+
+Can adjust latency
+https://filoe.github.io/cscore/sharpDox/1.2.0-release/#type/WasapiLoopbackCapture?WasapiLoopbackCapture2
+
+
+
+https://learn.microsoft.com/en-us/samples/microsoft/windows-classic-samples/applicationloopbackaudio-sample/
+
+http://software.muzychenko.net/eng/vac.htm
+
+https://github.com/dlepaux/realtime-bpm-analyzer
+https://github.com/MatthiasSchmid93/BpmAnalyzer
+
+
+Probably useless:
+https://github.com/SamBobBarnes/AudioDelay
+https://devcodef1.com/news/1092463/latency-free-real-time-audio-processing-in-c
+
+More in favorited links in Microsoft Edge
