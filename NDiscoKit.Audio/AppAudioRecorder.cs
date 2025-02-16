@@ -31,14 +31,14 @@ public sealed class AppAudioRecorder : IAsyncDisposable
     /// <summary>
     /// This task is very slow to complete (over a second)
     /// </summary>
-    public static async Task<AppAudioRecorder> StartRecordAsync(Process process, bool includeProcessTree = true)
+    public static async Task<AppAudioRecorder> StartRecordAsync(Process process, bool includeProcessTree = false)
     {
         ArgumentNullException.ThrowIfNull(process);
 
         ProcessWasapiCapture capture = await ProcessWasapiCapture.CreateForProcessCaptureAsync(process.Id, includeProcessTree);
-        AppAudioRecorder recorder = new(capture);
+        AppAudioRecorder recorder = new(capture); // Create recorder before capture start so that we can subscribe to the events on time
 
-        await Task.Delay(500); // Wait 500 ms so that the capture start's correctly (Otherwise the capture thread crashes for some reason...?)
+        await Task.Delay(500); // Wait 500 ms to let the process capture initialize (otherwise the app crashes...)
         capture.StartRecording();
         await Task.Delay(500); // Wait 500 ms before returning the object to block quick start/stops of the recorder (as this will deadlock the app for some reason)
 

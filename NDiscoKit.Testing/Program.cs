@@ -1,5 +1,4 @@
 ﻿using CSnakes.Runtime;
-using CSnakes.Runtime.Python;
 using NDiscoKit.Audio;
 using NDiscoKit.Audio.AudioSources;
 using NDiscoKit.Python;
@@ -11,7 +10,7 @@ internal static class Program
     private static async Task Main()
     {
         Console.WriteLine("Initializing Python...");
-        IPythonEnvironment python = await NDKPython.InitializeAsync();
+        IPythonEnvironment python = await NDKPython.InitializeAsync(pipInstall: false);
 
         CancellationTokenSource cancelRecord = new();
 
@@ -27,36 +26,24 @@ internal static class Program
 
     private static async Task StartCapture(IPythonEnvironment python, CancellationToken cancelRecord)
     {
-        IBeatTracking beatTracking = python.BeatTracking();
+        await using AppAudioRecorder recorder = await AppAudioRecorder.StartRecordAsync(AudioSourceProcess.Spotify);
 
-        using (PyObject beatTracker = beatTracking.CreateLegacyTempoTracker(fps: 100))
+        using AudioProcessor processor = AudioProcessor.CreateTempo(fps: 100, inputFormat: AppAudioRecorder.RecordFormat, beatTracking: python.BeatTracking());
+
+        recorder.DataAvailable += (_, data) => processor.Process(data);
+        Console.WriteLine("Capture started.");
+
+        try
         {
-            await using AppAudioRecorder recorder = await AppAudioRecorder.StartRecordAsync(AudioSourceProcess.Spotify);
-
-            int sampleRate = AppAudioRecorder.RecordFormat.SampleRate;
-            recorder.DataAvailable += (_, data) => Process(beatTracking, beatTracker, data, sampleRate: sampleRate);
-            Console.WriteLine("Capture started.");
-
             await recorder.WaitForRecordEnd().WaitAsync(cancelRecord);
-            if (cancelRecord.IsCancellationRequested)
-                Console.WriteLine("Stopping capture...");
-
+        }
+        catch (TaskCanceledException)
+        {
+            Console.WriteLine("Stopping capture...");
             await recorder.StopRecordAsync();
         }
 
         Console.WriteLine("Capture stopped.");
-    }
-
-    private static void Process(IBeatTracking beatTracking, PyObject beatTracker, ReadOnlyMemory<byte> data, int sampleRate)
-    {
-        // If we use Length == 0, it seemed to corrupt the heap... Oops...
-        if (data.Length < 1)
-            return;
-
-        IPyBuffer buffer = beatTracking.ProcessTracker(beatTracker, data.ToArray(), sampleRate);
-        ReadOnlySpan<double> output = buffer.AsDoubleReadOnlySpan();
-        foreach (double x in output.ToArray())
-            Console.WriteLine(x);
     }
 
     /* Didn't work....
