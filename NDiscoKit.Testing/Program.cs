@@ -28,7 +28,7 @@ internal static class Program
     {
         await using AppAudioRecorder recorder = await AppAudioRecorder.StartRecordAsync(AudioSourceProcess.Spotify);
 
-        using AudioProcessor processor = AudioProcessor.CreateTempo(fps: 100, inputFormat: AppAudioRecorder.RecordFormat, beatTracking: python.BeatTracking());
+        using AudioProcessor processor = AudioProcessor.CreateBeats(fps: 100, inputFormat: AppAudioRecorder.RecordFormat, beatTracking: python.BeatTracking());
 
         recorder.DataAvailable += (_, data) => processor.Process(data);
         Console.WriteLine("Capture started.");

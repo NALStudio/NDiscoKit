@@ -5,16 +5,27 @@
 from collections.abc import Buffer
 from typing import Any, Final, NamedTuple
 import madmom # pyright: ignore [reportMissingTypeStubs]
-from madmom.processors import BufferProcessor
 import numpy
 
 class Processor(NamedTuple):
     in_processor: madmom.processors.Processor
     out_processor: madmom.processors.Processor
 
-def create_beat_tracker(fps: int) -> Processor:
-    # https://github.com/CPJKU/madmom/blob/27f032e8947204902c675e5e341a3faf5dc86dae/bin/DBNBeatTracker#L79
-    args = _create_args(fps = fps)
+def create_beat_tracker(fps: int, **kwargs) -> Processor:
+    args = _create_args(
+        # https://github.com/CPJKU/madmom/blob/27f032e8947204902c675e5e341a3faf5dc86dae/bin/DBNBeatTracker#L79
+        fps = fps,
+
+        # https://github.com/CPJKU/madmom/blob/27f032e8947204902c675e5e341a3faf5dc86dae/bin/DBNBeatTracker#L73
+        min_bpm = 55.0,
+        max_bpm = 215.0,
+        transition_lambda = 100,
+        observation_lambda = 16,
+        threshold = 0,
+        correct = True,
+
+        **kwargs
+    )
 
     # https://github.com/CPJKU/madmom/blob/27f032e8947204902c675e5e341a3faf5dc86dae/bin/DBNBeatTracker#L86
     in_processor = madmom.features.RNNBeatProcessor(**args)
@@ -22,14 +33,19 @@ def create_beat_tracker(fps: int) -> Processor:
 
     return Processor(in_processor, out_processor)
 
-def create_tcn_tempo_tracker(fps: int) -> Processor:
-    # https://github.com/CPJKU/madmom/blob/27f032e8947204902c675e5e341a3faf5dc86dae/bin/TCNTempoDetector#L65
+def create_tcn_tempo_tracker(fps: int, **kwargs) -> Processor:
     args = _create_args(
+        # https://github.com/CPJKU/madmom/blob/27f032e8947204902c675e5e341a3faf5dc86dae/bin/TCNTempoDetector#L65
         fps=fps,
         tasks = (1, ),
         interpolate = True,
         method = None,
-        act_smooth = None
+        act_smooth = None,
+
+        # https://github.com/CPJKU/madmom/blob/27f032e8947204902c675e5e341a3faf5dc86dae/bin/TCNTempoDetector#L60
+        hist_smooth=15,
+
+        **kwargs
     )
 
     args["histogram_processor"] = madmom.features.tempo.TCNTempoHistogramProcessor(**args)
@@ -40,9 +56,22 @@ def create_tcn_tempo_tracker(fps: int) -> Processor:
 
     return Processor(in_processor, out_processor)
 
-def create_tempo_tracker(fps: int) -> Processor:
-    # https://github.com/CPJKU/madmom/blob/27f032e8947204902c675e5e341a3faf5dc86dae/bin/TempoDetector#L119
-    args = _create_args(fps = fps)
+def create_tempo_tracker(fps: int, **kwargs) -> Processor:
+    args = _create_args(
+        # https://github.com/CPJKU/madmom/blob/27f032e8947204902c675e5e341a3faf5dc86dae/bin/TempoDetector#L119
+        fps = fps,
+
+        # https://github.com/CPJKU/madmom/blob/27f032e8947204902c675e5e341a3faf5dc86dae/bin/TempoDetector#L103
+        method='comb',
+        min_bpm=40.0,
+        max_bpm=250.0,
+        act_smooth=0.14,
+        hist_smooth=9,
+        hist_buffer=10.0,
+        alpha=0.79,
+
+        **kwargs
+    )
 
     # https://github.com/CPJKU/madmom/blob/27f032e8947204902c675e5e341a3faf5dc86dae/bin/TempoDetector#L126
     in_processor = madmom.features.RNNBeatProcessor(**args)
@@ -50,21 +79,28 @@ def create_tempo_tracker(fps: int) -> Processor:
 
     return Processor(in_processor, out_processor)
 
-def create_onset_tracker(fps: int) -> Processor:
-    # https://github.com/CPJKU/madmom/blob/27f032e8947204902c675e5e341a3faf5dc86dae/bin/OnsetDetectorLL#L86
+def create_onset_tracker(fps: int, **kwargs) -> Processor:
     args = _create_args(
+        # https://github.com/CPJKU/madmom/blob/27f032e8947204902c675e5e341a3faf5dc86dae/bin/OnsetDetectorLL#L86
         fps = fps,
         pre_max = 1. / fps,
         post_max = 0,
         post_avg = 0,
-        online = True
+        online = True,
+
+        # https://github.com/CPJKU/madmom/blob/27f032e8947204902c675e5e341a3faf5dc86dae/bin/OnsetDetectorLL#L81
+        threshold = 0.23,
+        combine = 0.03,
+        delay = 0.0,
+
+        **kwargs
     )
 
     # https://github.com/CPJKU/madmom/blob/27f032e8947204902c675e5e341a3faf5dc86dae/bin/OnsetDetectorLL#L97
     in_processor = madmom.features.RNNOnsetProcessor(**args)
     out_processor = madmom.features.OnsetPeakPickingProcessor(**args)
 
-    # May expect a different frame_size?? 
+    # May expect a different frame_size??
     return Processor(in_processor, out_processor)
 
 # fps seems to be required by all online-supporting processors if they are set as online=True
@@ -92,6 +128,6 @@ def process_tracker(fps: int, hop_index: int, hop_size: int, frame_size: int, bu
     sig: Final = madmom.audio.Signal(databuf, start=start, **kwargs)
     mid: Final = tracker.in_processor.process(sig, **kwargs)
     res: Final = tracker.out_processor.process(mid, **kwargs)
-    
+
     assert(isinstance(res, numpy.ndarray));
     return res

@@ -51,7 +51,7 @@ internal sealed class AudioProcessor : IDisposable
         buffer = new byte[frameSize * 4]; // 4 bytes per float
 
         // DEBUG
-        SetupDesktopDebugFile();
+        // SetupDesktopDebugFile();
     }
 
     private void SetupDesktopDebugFile(string dirname = "NDiscoKit Debug", string filename = "record.wav")
@@ -60,7 +60,7 @@ internal sealed class AudioProcessor : IDisposable
         Directory.CreateDirectory(dir);
         debugWriter = new(Path.Join(dir, "record.wav"), OutputFormat);
 
-        // writeHopsTo = dir;
+        writeHopsTo = dir;
     }
 
     public static AudioProcessor CreateTempo(int fps, WaveFormat inputFormat, IBeatTracking beatTracking)
@@ -70,7 +70,7 @@ internal sealed class AudioProcessor : IDisposable
             inputFormat: inputFormat,
             beatTracking: beatTracking,
             tracker: beatTracking.CreateTempoTracker(fps),
-            writeData: WriteTempoWeights
+            writeData: WriteDominantTempo
         );
     }
     public static AudioProcessor CreateTcnTempo(int fps, WaveFormat inputFormat, IBeatTracking beatTracking)
@@ -125,7 +125,10 @@ internal sealed class AudioProcessor : IDisposable
         finally
         {
             if (mono32Rent is not null)
-                floatPool.Return(mono32Rent, clearArray: true); // Array contains user's system audio data, so it's best to clear the array just in case
+            {
+                mono32.Clear();
+                floatPool.Return(mono32Rent, clearArray: false);
+            }
         }
     }
 
@@ -169,7 +172,7 @@ internal sealed class AudioProcessor : IDisposable
             }
             else
             {
-                ReadOnlySpan<float> remainingData = mono32.Slice(index);
+                ReadOnlySpan<float> remainingData = mono32[index..];
                 Debug.Assert(remainingData.Length == remaining);
 
                 WriteBuffer(ref buffer, remainingData);
@@ -266,14 +269,37 @@ internal sealed class AudioProcessor : IDisposable
         // Sort by strength
         strengths.Sort(bpms);
 
-        Span<double> top5Bpm = bpms.Length > 5 ? bpms[..5] : bpms;
-        Span<double> top5Strength = strengths.Length > 5 ? strengths[..5] : strengths;
+        Span<double> top5Bpm = bpms.Length > 5 ? bpms[^5..] : bpms;
+        Span<double> top5Strength = strengths.Length > 5 ? strengths[^5..] : strengths;
 
         // Sort by bpm
-        top5Bpm.Sort(top5Strength);
+        // top5Bpm.Sort(top5Strength);
 
-        for (int i = 0; i < top5Bpm.Length; i++)
+        for (int i = top5Bpm.Length - 1; i >= 0; i--)
             Console.WriteLine("{0:.00}\t\t{1:P1}", top5Bpm[i], top5Strength[i]);
+    }
+
+    private static void WriteSingleDominantTempo(IPyBuffer dataBuffer)
+    {
+        ReadOnlySpan2D<double> data = dataBuffer.AsDoubleReadOnlySpan2D();
+
+        double max = -1;
+        double maxStrength = -1;
+        for (int i = 0; i < data.Height; i++)
+        {
+            ReadOnlySpan<double> row = data.GetRowSpan(i);
+
+            double bpm = row[0];
+            double strength = row[1];
+
+            if (maxStrength < strength)
+            {
+                max = bpm;
+                maxStrength = strength;
+            }
+        }
+
+        Console.WriteLine("{0:.00}", max);
     }
 
     private static void WriteDominantTempo(IPyBuffer dataBuffer)
@@ -283,7 +309,7 @@ internal sealed class AudioProcessor : IDisposable
         int height = data.Height;
         Debug.Assert(width == 2);
         if (height > 128)
-            throw new ArgumentException("Buffer height too large, stack overflow possible.");
+            throw new ArgumentException($"Buffer height too large, stack overflow possible: {height}");
 
         // height is verified before stackalloc
         Span<double> bpms = stackalloc double[height];
@@ -302,8 +328,8 @@ internal sealed class AudioProcessor : IDisposable
 
         if (bpms.Length > 1)
         {
-            double t1 = bpms[0];
-            double t2 = bpms[1];
+            double t1 = bpms[^1];
+            double t2 = bpms[^2];
             if (t2 > t1)
                 Console.WriteLine("{0:.00}   {1:.00}", t1, t2);
             else
