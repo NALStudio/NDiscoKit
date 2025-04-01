@@ -7,6 +7,10 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace NDiscoKit.Testing;
+
+/// <summary>
+/// Not thread-safe.
+/// </summary>
 internal sealed class AudioProcessor : IDisposable
 {
     private const int frameSize = 2048; // Python: madmom.audio.signal.FRAME_SIZE
@@ -20,22 +24,17 @@ internal sealed class AudioProcessor : IDisposable
 
     private bool disposed = false;
 
-    private readonly ArrayPool<float> floatPool;
-
     private readonly PyObject tracker;
-    private readonly Action<IPyBuffer> writeData;
 
+    private double currentTime = 0d;
     private int hopIndex = 0;
     private int hopOffset = 0;
     private readonly byte[] buffer;
 
-    private string? writeHopsTo;
-    private WaveFileWriter? debugWriter;
-
-    private AudioProcessor(int fps, WaveFormat inputFormat, IBeatTracking beatTracking, PyObject tracker, Action<IPyBuffer> writeData)
+    private AudioProcessor(int fps, WaveFormat inputFormat, IBeatTracking beatTracking, PyObject tracker)
     {
         if (!inputFormat.Equals(new WaveFormat()))
-            throw new ArgumentException("PCM 44.1 Khz stereo 16 bit format required.");
+            throw new ArgumentException("PCM 44.1 kHz stereo 16 bit format required.");
 
         Fps = fps;
         HopSize = ComputeHopSize(fps, inputFormat.SampleRate);
@@ -45,68 +44,24 @@ internal sealed class AudioProcessor : IDisposable
         BeatTracking = beatTracking;
 
         this.tracker = tracker;
-        this.writeData = writeData;
 
-        floatPool = ArrayPool<float>.Shared;
         buffer = new byte[frameSize * 4]; // 4 bytes per float
-
-        // DEBUG
-        // SetupDesktopDebugFile();
     }
 
-    private void SetupDesktopDebugFile(string dirname = "NDiscoKit Debug", string filename = "record.wav")
-    {
-        string dir = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), dirname);
-        Directory.CreateDirectory(dir);
-        debugWriter = new(Path.Join(dir, "record.wav"), OutputFormat);
-
-        writeHopsTo = dir;
-    }
-
-    public static AudioProcessor CreateTempo(int fps, WaveFormat inputFormat, IBeatTracking beatTracking)
+    public static AudioProcessor Create(int fps, WaveFormat inputFormat, IBeatTracking beatTracking)
     {
         return new AudioProcessor(
             fps: fps,
             inputFormat: inputFormat,
             beatTracking: beatTracking,
-            tracker: beatTracking.CreateTempoTracker(fps),
-            writeData: WriteDominantTempo
-        );
-    }
-    public static AudioProcessor CreateTcnTempo(int fps, WaveFormat inputFormat, IBeatTracking beatTracking)
-    {
-        return new AudioProcessor(
-            fps: fps,
-            inputFormat: inputFormat,
-            beatTracking: beatTracking,
-            tracker: beatTracking.CreateTcnTempoTracker(fps),
-            writeData: WriteDominantTempo
-        );
-    }
-    public static AudioProcessor CreateBeats(int fps, WaveFormat inputFormat, IBeatTracking beatTracking)
-    {
-        return new AudioProcessor(
-            fps: fps,
-            inputFormat: inputFormat,
-            beatTracking: beatTracking,
-            tracker: beatTracking.CreateBeatTracker(fps),
-            writeData: WriteTimings
-        );
-    }
-    public static AudioProcessor CreateOnsets(int fps, WaveFormat inputFormat, IBeatTracking beatTracking)
-    {
-        return new AudioProcessor(
-            fps: fps,
-            inputFormat: inputFormat,
-            beatTracking: beatTracking,
-            tracker: beatTracking.CreateOnsetTracker(fps),
-            writeData: WriteTimings
+            tracker: beatTracking.CreateProcessor(fps)
         );
     }
 
-    public void Process(ReadOnlyMemory<byte> bytes) => Process(bytes.Span);
-
-    public void Process(scoped ReadOnlySpan<byte> bytes)
+    /// <summary>
+    /// Reset will only be called if we do a hop during this processing.
+    /// </summary>
+    public void Process(scoped ReadOnlySpan<byte> bytes, in AudioProcessorResult? result = null, bool reset = false)
     {
         ThrowIfDisposed();
 
@@ -115,19 +70,18 @@ internal sealed class AudioProcessor : IDisposable
         int monoLength = stereoLength / 2;
 
         float[]? mono32Rent = null;
-        Span<float> mono32 = monoLength < 512 ? stackalloc float[monoLength] : (mono32Rent = floatPool.Rent(monoLength)).AsSpan(0, monoLength);
+        Span<float> mono32 = monoLength < 512 ? stackalloc float[monoLength] : (mono32Rent = ArrayPool<float>.Shared.Rent(monoLength)).AsSpan(0, monoLength);
         try
         {
             Stereo16ToMono32(stereo16, ref mono32);
-            ProcessMono(mono32);
-            debugWriter?.Write(MemoryMarshal.Cast<float, byte>(mono32));
+            ProcessMono(mono32, in result, reset: reset);
         }
         finally
         {
             if (mono32Rent is not null)
             {
                 mono32.Clear();
-                floatPool.Return(mono32Rent, clearArray: false);
+                ArrayPool<float>.Shared.Return(mono32Rent, clearArray: false);
             }
         }
     }
@@ -148,7 +102,7 @@ internal sealed class AudioProcessor : IDisposable
         }
     }
 
-    private void ProcessMono(scoped ReadOnlySpan<float> mono32)
+    private void ProcessMono(scoped ReadOnlySpan<float> mono32, ref readonly AudioProcessorResult? result, bool reset)
     {
         Span<float> buffer = MemoryMarshal.Cast<byte, float>(this.buffer);
 
@@ -166,9 +120,12 @@ internal sealed class AudioProcessor : IDisposable
 
                 Debug.Assert((hopOffset + writeCount) % HopSize == 0);
                 hopOffset = 0;
-                hopIndex++;
 
-                ProcessHop(hopIndex);
+                if (reset)
+                    hopIndex = 0;
+                ProcessHop(in result, hopIndex, reset: reset);
+                hopIndex++;
+                reset = false;
             }
             else
             {
@@ -180,6 +137,8 @@ internal sealed class AudioProcessor : IDisposable
                 hopOffset += remainingData.Length;
             }
         }
+
+        currentTime = ((hopIndex * HopSize) + hopOffset) / OutputFormat.SampleRate;
     }
 
     private static void WriteBuffer(ref Span<float> buffer, scoped ReadOnlySpan<float> data)
@@ -188,28 +147,32 @@ internal sealed class AudioProcessor : IDisposable
         data.CopyTo(buffer[^data.Length..]);
     }
 
-    private void ProcessHop(int hopIndex)
+    private void ProcessHop(ref readonly AudioProcessorResult? apResult, int hopIndex, bool reset)
     {
-        if (writeHopsTo is not null && (hopIndex % 100) == 0)
-        {
-            using WaveFileWriter writer = new(Path.Join(writeHopsTo, $"hop_{hopIndex}.wav"), OutputFormat);
-            writer.Write(buffer);
-        }
-
         // Buffer data seems to be intact here after all of the conversions and buffer writes...
         // I verified this by manually listening to the extracted buffer data from hops.
-        IPyBuffer result = BeatTracking.ProcessTracker(
+        IReadOnlyList<IPyBuffer> result = BeatTracking.ProcessTrackers(
             fps: Fps,
             hopIndex: hopIndex,
             hopSize: HopSize,
             frameSize: frameSize,
             buffer: buffer,
+            tracker: tracker,
+            reset: reset,
             sampleRate: OutputFormat.SampleRate,
             bitsPerSample: OutputFormat.BitsPerSample,
-            numChannels: OutputFormat.Channels,
-            tracker: tracker
+            numChannels: OutputFormat.Channels
         );
-        writeData(result);
+
+        IPyBuffer beats = result[0];
+        IPyBuffer tempo = result[1];
+
+        (Prediction<Tempo>? T1, Prediction<Tempo>? T2) = GetDominantTempo(tempo);
+        apResult?.Update(
+            t1: T1,
+            t2: T2,
+            beats: beats.AsReadOnlySpan<double>()
+        );
     }
 
     private void ThrowIfDisposed()
@@ -222,7 +185,6 @@ internal sealed class AudioProcessor : IDisposable
     {
         disposed = true;
         tracker?.Dispose();
-        debugWriter?.Dispose();
     }
 
     public static int ComputeHopSize(int fps, int sampleRate)
@@ -236,104 +198,51 @@ internal sealed class AudioProcessor : IDisposable
         return hopSize;
     }
 
-    private static void WriteTimings(IPyBuffer dataBuffer)
+    private static (Prediction<Tempo>? T1, Prediction<Tempo>? T2) GetDominantTempo(IPyBuffer dataBuffer)
     {
-        foreach (double pos in dataBuffer.AsDoubleReadOnlySpan())
-            Console.WriteLine(pos);
-    }
-
-    private static void WriteTempoWeights(IPyBuffer dataBuffer)
-    {
-        Console.Clear();
-
-        ReadOnlySpan2D<double> data = dataBuffer.AsDoubleReadOnlySpan2D();
-        int width = data.Width;
-        int height = data.Height;
-        Debug.Assert(width == 2);
-        if (height > 128)
-            throw new ArgumentException("Buffer height too large, stack overflow possible.");
-
-        // height is verified before stackalloc
-        Span<double> bpms = stackalloc double[height];
-        Span<double> strengths = stackalloc double[height];
-
-        for (int i = 0; i < height; i++)
+        static Prediction<Tempo>? TryConstructPrediction(in ReadOnlySpan<double> span)
         {
-            ReadOnlySpan<double> row = data.GetRowSpan(i);
-            Debug.Assert(row.Length == 2);
+            if (span.Length != 2)
+                throw new ArgumentException("Invalid span length.");
 
-            bpms[i] = row[0];
-            strengths[i] = row[1];
+            double tempo = span[0];
+            if (double.IsNaN(tempo))
+                return null;
+
+            return new Prediction<Tempo>(Strength: span[1], Value: new Tempo(tempo));
         }
 
-        // Sort by strength
-        strengths.Sort(bpms);
-
-        Span<double> top5Bpm = bpms.Length > 5 ? bpms[^5..] : bpms;
-        Span<double> top5Strength = strengths.Length > 5 ? strengths[^5..] : strengths;
-
-        // Sort by bpm
-        // top5Bpm.Sort(top5Strength);
-
-        for (int i = top5Bpm.Length - 1; i >= 0; i--)
-            Console.WriteLine("{0:.00}\t\t{1:P1}", top5Bpm[i], top5Strength[i]);
-    }
-
-    private static void WriteSingleDominantTempo(IPyBuffer dataBuffer)
-    {
         ReadOnlySpan2D<double> data = dataBuffer.AsDoubleReadOnlySpan2D();
 
-        double max = -1;
-        double maxStrength = -1;
-        for (int i = 0; i < data.Height; i++)
+#if DEBUG
+        bool strengthIsSortedFromLargestToSmallest = true;
+        for (int i = 1; i < data.Height; i++)
         {
-            ReadOnlySpan<double> row = data.GetRowSpan(i);
-
-            double bpm = row[0];
-            double strength = row[1];
-
-            if (maxStrength < strength)
+            ReadOnlySpan<double> r1 = data.GetRowSpan(i - 1);
+            ReadOnlySpan<double> r2 = data.GetRowSpan(i);
+            if (r1.Length != 2 || r2.Length != 2 || r1[1] < r2[1])
             {
-                max = bpm;
-                maxStrength = strength;
+                strengthIsSortedFromLargestToSmallest = false;
+                break;
             }
         }
 
-        Console.WriteLine("{0:.00}", max);
-    }
+        Debug.Assert(strengthIsSortedFromLargestToSmallest);
+#endif
 
-    private static void WriteDominantTempo(IPyBuffer dataBuffer)
-    {
-        ReadOnlySpan2D<double> data = dataBuffer.AsDoubleReadOnlySpan2D();
-        int width = data.Width;
-        int height = data.Height;
-        Debug.Assert(width == 2);
-        if (height > 128)
-            throw new ArgumentException($"Buffer height too large, stack overflow possible: {height}");
+        Prediction<Tempo>? t1 = data.Height > 0 ? TryConstructPrediction(data.GetRowSpan(0)) : null;
+        Prediction<Tempo>? t2 = data.Height > 1 ? TryConstructPrediction(data.GetRowSpan(1)) : null;
 
-        // height is verified before stackalloc
-        Span<double> bpms = stackalloc double[height];
-        Span<double> strengths = stackalloc double[height];
+        // Non-null value first if possible or both are null
+        if (!t1.HasValue)
+            return (t2, t1);
+        if (!t2.HasValue)
+            return (t1, t2);
 
-        for (int i = 0; i < height; i++)
-        {
-            ReadOnlySpan<double> row = data.GetRowSpan(i);
-            Debug.Assert(row.Length == 2);
-
-            bpms[i] = row[0];
-            strengths[i] = row[1];
-        }
-
-        strengths.Sort(bpms);
-
-        if (bpms.Length > 1)
-        {
-            double t1 = bpms[^1];
-            double t2 = bpms[^2];
-            if (t2 > t1)
-                Console.WriteLine("{0:.00}   {1:.00}", t1, t2);
-            else
-                Console.WriteLine("{1:.00}   {0:.00}", t1, t2);
-        }
+        // Smaller tempo first
+        if (t2.Value.Value > t1.Value.Value)
+            return (t1, t2);
+        else
+            return (t2, t1);
     }
 }

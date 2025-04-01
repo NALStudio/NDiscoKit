@@ -15,11 +15,23 @@ internal static class Program
         CancellationTokenSource cancelRecord = new();
 
         Console.WriteLine("Starting capture...");
-        Task captureTask = new(async () => await StartCapture(python, cancelRecord.Token), TaskCreationOptions.LongRunning);
-        captureTask.Start();
+        Task captureTask = StartCapture(python, cancelRecord.Token);
 
-        if (Console.ReadKey().Key == ConsoleKey.Enter)
-            cancelRecord.Cancel();
+        Task<ConsoleKey> keyTask;
+        while (true)
+        {
+            keyTask = Task.Run(() => Console.ReadKey().Key);
+            await Task.WhenAny(captureTask, keyTask);
+
+            if (captureTask.IsCompleted)
+                break;
+
+            if (keyTask.IsCompleted && keyTask.Result == ConsoleKey.Enter)
+            {
+                cancelRecord.Cancel();
+                break;
+            }
+        }
 
         await captureTask;
     }
@@ -28,9 +40,16 @@ internal static class Program
     {
         await using AppAudioRecorder recorder = await AppAudioRecorder.StartRecordAsync(AudioSourceProcess.Spotify);
 
-        using AudioProcessor processor = AudioProcessor.CreateBeats(fps: 100, inputFormat: AppAudioRecorder.RecordFormat, beatTracking: python.BeatTracking());
+        using AudioProcessor processor = AudioProcessor.Create(fps: 100, inputFormat: AppAudioRecorder.RecordFormat, beatTracking: python.BeatTracking());
 
-        recorder.DataAvailable += (_, data) => processor.Process(data);
+        AudioProcessorResult result = new();
+        recorder.DataAvailable += (_, dataMemory) =>
+        {
+            // TODO: Reset
+            ReadOnlySpan<byte> data = dataMemory.Span;
+            processor.Process(data, in result);
+            Console.WriteLine($"{result.T1?.Value.BPM:0.00} {result.T2?.Value.BPM:0.00}");
+        };
         Console.WriteLine("Capture started.");
 
         try
