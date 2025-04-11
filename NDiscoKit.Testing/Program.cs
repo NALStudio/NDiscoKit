@@ -41,13 +41,23 @@ internal static class Program
         await using AppAudioRecorder recorder = await AppAudioRecorder.StartRecordAsync(AudioSourceProcess.Spotify);
 
         using AudioProcessor processor = AudioProcessor.Create(fps: 100, inputFormat: AppAudioRecorder.RecordFormat, beatTracking: python.BeatTracking());
+        SilenceDetector silence = new(TimeSpan.FromSeconds(5), AppAudioRecorder.RecordFormat);
 
         AudioProcessorResult result = new();
         recorder.DataAvailable += (_, dataMemory) =>
         {
-            // TODO: Reset
             ReadOnlySpan<byte> data = dataMemory.Span;
-            processor.Process(data, in result);
+
+            silence.Update(data);
+
+            bool reset = silence.IsSilence;
+            processor.Process(data, in result, reset: reset);
+            if (reset)
+            {
+                silence.Reset();
+                Console.WriteLine("Reset.");
+            }
+
             Console.WriteLine($"{result.T1?.Value.BPM:0.00} {result.T2?.Value.BPM:0.00}");
         };
         Console.WriteLine("Capture started.");

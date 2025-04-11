@@ -13,7 +13,10 @@ namespace NDiscoKit.Testing;
 /// </summary>
 internal sealed class AudioProcessor : IDisposable
 {
-    private const int frameSize = 2048; // Python: madmom.audio.signal.FRAME_SIZE
+    /// <summary>
+    /// The size of <see cref="GetBuffer"/>
+    /// </summary>
+    public const int FrameSize = 2048; // Python: madmom.audio.signal.FRAME_SIZE
 
     public int Fps { get; }
     public int HopSize { get; }
@@ -45,8 +48,10 @@ internal sealed class AudioProcessor : IDisposable
 
         this.tracker = tracker;
 
-        buffer = new byte[frameSize * 4]; // 4 bytes per float
+        buffer = new byte[FrameSize * 4]; // 4 bytes per float
     }
+
+    public ReadOnlySpan<float> GetBuffer() => MemoryMarshal.Cast<byte, float>(buffer);
 
     public static AudioProcessor Create(int fps, WaveFormat inputFormat, IBeatTracking beatTracking)
     {
@@ -58,9 +63,6 @@ internal sealed class AudioProcessor : IDisposable
         );
     }
 
-    /// <summary>
-    /// Reset will only be called if we do a hop during this processing.
-    /// </summary>
     public void Process(scoped ReadOnlySpan<byte> bytes, in AudioProcessorResult? result = null, bool reset = false)
     {
         ThrowIfDisposed();
@@ -106,6 +108,8 @@ internal sealed class AudioProcessor : IDisposable
     {
         Span<float> buffer = MemoryMarshal.Cast<byte, float>(this.buffer);
 
+        result?.BeforeProcess();
+
         int index = 0;
         while (index < mono32.Length)
         {
@@ -141,7 +145,7 @@ internal sealed class AudioProcessor : IDisposable
         currentTime = ((hopIndex * HopSize) + hopOffset) / OutputFormat.SampleRate;
     }
 
-    private static void WriteBuffer(ref Span<float> buffer, scoped ReadOnlySpan<float> data)
+    private static void WriteBuffer(scoped ref Span<float> buffer, scoped ReadOnlySpan<float> data)
     {
         buffer[data.Length..].CopyTo(buffer);
         data.CopyTo(buffer[^data.Length..]);
@@ -155,7 +159,7 @@ internal sealed class AudioProcessor : IDisposable
             fps: Fps,
             hopIndex: hopIndex,
             hopSize: HopSize,
-            frameSize: frameSize,
+            frameSize: FrameSize,
             buffer: buffer,
             tracker: tracker,
             reset: reset,
@@ -168,7 +172,7 @@ internal sealed class AudioProcessor : IDisposable
         IPyBuffer tempo = result[1];
 
         (Prediction<Tempo>? T1, Prediction<Tempo>? T2) = GetDominantTempo(tempo);
-        apResult?.Update(
+        apResult?.AfterHop(
             t1: T1,
             t2: T2,
             beats: beats.AsReadOnlySpan<double>()
@@ -215,19 +219,13 @@ internal sealed class AudioProcessor : IDisposable
         ReadOnlySpan2D<double> data = dataBuffer.AsDoubleReadOnlySpan2D();
 
 #if DEBUG
-        bool strengthIsSortedFromLargestToSmallest = true;
         for (int i = 1; i < data.Height; i++)
         {
             ReadOnlySpan<double> r1 = data.GetRowSpan(i - 1);
             ReadOnlySpan<double> r2 = data.GetRowSpan(i);
-            if (r1.Length != 2 || r2.Length != 2 || r1[1] < r2[1])
-            {
-                strengthIsSortedFromLargestToSmallest = false;
-                break;
-            }
+            if (!(r1.Length == 2 && r2.Length == 2 && r1[1] > r2[1]))
+                Debug.Fail("Strengths should be sorted from largest to smallest.");
         }
-
-        Debug.Assert(strengthIsSortedFromLargestToSmallest);
 #endif
 
         Prediction<Tempo>? t1 = data.Height > 0 ? TryConstructPrediction(data.GetRowSpan(0)) : null;
