@@ -1,0 +1,17 @@
+﻿@page "/"
+
+<MudDiscoButton Toggle Icon="@(Icons.Material.Rounded.Settings)" />
+
+
+@code {
+    string Text { get; set; } = "????";
+    string ButtonText { get; set; } = "Click Me";
+    int ClickCount { get; set; }
+
+    void ButtonOnClick()
+    {
+        ClickCount += 1;
+        Text = $"Awesome x {ClickCount}";
+        ButtonText = "Click Me Again";
+    }
+}

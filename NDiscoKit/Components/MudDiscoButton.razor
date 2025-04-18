@@ -1,0 +1,12 @@
+﻿<MudTooltip Text="@Name">
+    <MudIconButton Style=@(State ? "padding:9px" : "padding:8px")
+                   Icon="@Icon"
+                   @onpointerdown="@OnPointerDown"
+                   @onpointerup="@OnPointerUp"
+                   OnClick="@OnClick"
+                   DropShadow="false"
+                   Ripple="false"
+                   Size="Size.Large"
+                   Color="@Color"
+                   Variant="@(State ? Variant.Filled : Variant.Outlined)" />
+</MudTooltip>
