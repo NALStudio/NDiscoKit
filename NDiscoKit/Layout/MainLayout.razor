@@ -1,5 +1,23 @@
-﻿@inherits LayoutComponentBase
+﻿@using Microsoft.AspNetCore.Components.Routing
+@inherits LayoutComponentBase
 
 @layout BaseLayout
 
-@Body
+<MudLayout>
+    <MudAppBar Dense Elevation="0">
+        <MudIconButton Icon="@(Icons.Material.Rounded.Menu)" Color="Color.Inherit" Edge="Edge.Start" OnClick="ToggleDrawer" />
+        <NDiscoKitWordmark Class="ml-2" />
+    </MudAppBar>
+    <MudDrawer Color="Color.Primary" Elevation="0" Class="pt-4" @bind-Open="@drawerOpen" ClipMode="DrawerClipMode.Docked">
+        <NDiscoKitWordmark Class="pl-4 d-md-none" />
+        <MudNavMenu Class="pa-2" Rounded Margin="Margin.Normal">
+            <CustomNavLink Href="/" Match="NavLinkMatch.All" Icon="@(Icons.Material.Rounded.Dashboard)">Dashboard</CustomNavLink>
+            <CustomNavLink Href="/lights" Icon="@(Icons.Material.Rounded.Lightbulb)">Lights</CustomNavLink>
+        </MudNavMenu>
+    </MudDrawer>
+    <MudMainContent>
+        <MudContainer>
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>

@@ -2,7 +2,7 @@
 using MudBlazor;
 
 namespace NDiscoKit.Components;
-public partial class MudDiscoButton
+public partial class DiscoButton
 {
     [Parameter]
     public string? Name { get; set; }
