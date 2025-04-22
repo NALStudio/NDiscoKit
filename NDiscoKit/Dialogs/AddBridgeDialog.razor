@@ -1,0 +1,55 @@
+﻿@using NDiscoKit.Icons
+@using PhilipsHue.Models;
+
+<MudDialog>
+    <DialogContent>
+        @if (IsAuthenticating)
+        {
+            <MudStack Style="height:512px" AlignItems="AlignItems.Center" Justify="Justify.Center" Spacing="4">
+                <MudIcon Class="bridge-dialog-pulse" Icon="@(HueIcons.BridgeV2)" Style="font-size:5rem" />
+                <MudStack Row AlignItems="AlignItems.Center">
+                    <MudProgressCircular Value="@authenticationProgress" Min="0" Max="1" Color="Color.Primary" Size="Size.Small" Rounded StrokeWidth="5" />
+                    <MudText Typo="Typo.subtitle1">Press Hue Link Button</MudText>
+                </MudStack>
+            </MudStack>
+
+            <style>
+                .bridge-dialog-pulse {
+                    animation: bridge-dialog-pulse-keyframes 1s infinite ease-in-out alternate;
+                }
+
+                @@keyframes bridge-dialog-pulse-keyframes {
+                    from { transform: scale(0.7); }
+                    to { transform: scale(1.0); }
+                }
+            </style>
+        }
+        else
+        {
+            <MudList T="DiscoveredBridge" SelectedValueChanged="ChooseAndAuthenticateBridge">
+                <MudListSubheader>
+                    <MudStack Row AlignItems="AlignItems.Center">
+                        <MudText Style="flex:1" Typo="Typo.h6">@(bridges.Count) @(bridges.Count != 1 ? "Bridges" : "Bridge") Discovered</MudText>
+
+                        @if (IsDiscoveringBridges)
+                        {
+                            <MudProgressCircular Class="mr-3" Indeterminate Size="Size.Small" />
+                        }
+                        else
+                        {
+                            <MudIconButton Icon="@(Icons.Material.Rounded.Refresh)" OnClick="DiscoverBridges" />
+                        }
+                    </MudStack>
+                </MudListSubheader>
+
+                @foreach (DiscoveredBridge b in bridges.Values)
+                {
+                    <MudListItem Icon="@(HueIcons.BridgeV2)" Value="b" >
+                        <MudText><b>@(b.Name ?? b.BridgeId ?? "Unknown Bridge")</b></MudText>
+                        <MudText Typo="Typo.subtitle2">@(b.IpAddress)</MudText>
+                    </MudListItem>
+                }
+            </MudList>
+        }
+    </DialogContent>
+</MudDialog>

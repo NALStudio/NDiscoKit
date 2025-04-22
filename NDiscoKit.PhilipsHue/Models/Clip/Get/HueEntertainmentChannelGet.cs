@@ -6,5 +6,5 @@ public class HueEntertainmentChannelGet
 {
     public required byte ChannelId { get; init; }
     public required HuePosition Position { get; init; }
-    public required ImmutableArray<HueSegmentReferenceGet> Members { get; init; }
+    public required ImmutableArray<HueEntertainmentSegmentReferenceGet> Members { get; init; }
 }

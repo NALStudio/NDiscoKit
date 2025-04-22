@@ -15,7 +15,12 @@ public class HueAuthentication : IDisposable
         http = new HueHttpClient(HueEndpoints.BaseAddress(bridgeIp), bridgeId);
     }
 
-    public async Task<HueCredentials> Authenticate(string appName, string instanceName)
+    /// <summary>
+    /// Try to authenticate.
+    /// </summary>
+    /// <exception cref="HueAuthenticationException">An internal error occured.</exception>
+    /// <exception cref="HueLinkButtonNotPressedException">Hue Bridge link button was not pressed.</exception>
+    public async Task<HueCredentials> AuthenticateAsync(string appName, string instanceName, CancellationToken cancellationToken = default)
     {
         // Authentication behaviour uses v1 api which means we must write this method completely from scratch
 
@@ -29,13 +34,13 @@ public class HueAuthentication : IDisposable
             }
         );
 
-        HttpResponseMessage response = await http.PostAsync(HueEndpoints.AuthenticationV1, content);
+        HttpResponseMessage response = await http.PostAsync(HueEndpoints.AuthenticationV1, content, cancellationToken);
 
         // Hue authentication API should return 200 OK on requests with errors
         if (!response.IsSuccessStatusCode)
             throw new HueAuthenticationException($"Request failed: {response.StatusCode}");
 
-        AuthenticationResponse[]? responseContent = await response.Content.ReadFromJsonAsync<AuthenticationResponse[]>();
+        AuthenticationResponse[]? responseContent = await response.Content.ReadFromJsonAsync<AuthenticationResponse[]>(cancellationToken);
         AuthenticationResponse? authResponse = responseContent?.Single();
 
         if (authResponse?.Error is AuthenticationErrorResponse error)

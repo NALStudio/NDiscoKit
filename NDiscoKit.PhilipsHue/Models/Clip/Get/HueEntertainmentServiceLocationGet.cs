@@ -2,7 +2,7 @@
 using System.Collections.Immutable;
 
 namespace NDiscoKit.PhilipsHue.Models.Clip.Get;
-public class HueServiceLocationGet
+public class HueEntertainmentServiceLocationGet
 {
     public required HueResourceIdentifier Service { get; init; }
     public ImmutableArray<HuePosition> Positions { get; init; }

@@ -32,10 +32,7 @@ internal class HueRequestException : HueException
     {
         StringBuilder sb = new();
 
-        sb.Append("Hue request failed with ");
-        sb.Append(statusCode);
-        sb.Append(" status code.");
-        sb.AppendLine();
+        sb.AppendLine($"Hue request failed with status code: {(int)statusCode}.");
 
         if (errors?.Count > 0)
         {

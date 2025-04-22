@@ -8,35 +8,33 @@ namespace NDiscoKit.PhilipsHue.Api;
 public abstract class HueApi : IDisposable
 {
     #region Public Methods
-    public Task<ImmutableArray<HueLightGet>> GetLights() => GetAll<HueLightGet>(HueEndpoints.Clip.Light);
-    public Task<HueLightGet> GetLight(Guid id) => Get<HueLightGet>(HueEndpoints.Clip.Light, id);
+    public Task<ImmutableArray<HueLightGet>> GetLightsAsync(CancellationToken cancellationToken = default) => GetAllAsync<HueLightGet>(HueEndpoints.Clip.Light, cancellationToken);
+    public Task<HueLightGet> GetLightAsync(Guid id, CancellationToken cancellationToken = default) => GetAsync<HueLightGet>(HueEndpoints.Clip.Light, id, cancellationToken);
 
-    public Task<ImmutableArray<HueEntertainmentConfigurationGet>> GetEntertainmentConfigurations() => GetAll<HueEntertainmentConfigurationGet>(HueEndpoints.Clip.EntertainmentConfiguration);
-    public Task<HueEntertainmentConfigurationGet> GetEntertainmentConfiguration(Guid id) => Get<HueEntertainmentConfigurationGet>(HueEndpoints.Clip.EntertainmentConfiguration, id);
-    public Task UpdateEntertainmentConfiguration(Guid id, HueEntertainmentConfigurationPut value) => Put(HueEndpoints.Clip.EntertainmentConfiguration, id, value);
+    public Task<ImmutableArray<HueEntertainmentConfigurationGet>> GetEntertainmentConfigurationsAsync(CancellationToken cancellationToken = default) => GetAllAsync<HueEntertainmentConfigurationGet>(HueEndpoints.Clip.EntertainmentConfiguration, cancellationToken);
+    public Task<HueEntertainmentConfigurationGet> GetEntertainmentConfigurationAsync(Guid id, CancellationToken cancellationToken = default) => GetAsync<HueEntertainmentConfigurationGet>(HueEndpoints.Clip.EntertainmentConfiguration, id, cancellationToken);
+    public Task UpdateEntertainmentConfigurationAsync(Guid id, HueEntertainmentConfigurationPut value, CancellationToken cancellationToken = default) => PutAsync(HueEndpoints.Clip.EntertainmentConfiguration, id, value, cancellationToken);
+
+    public Task<ImmutableArray<HueEntertainmentServiceGet>> GetEntertainmentServicesAsync(CancellationToken cancellationToken = default) => GetAllAsync<HueEntertainmentServiceGet>(HueEndpoints.Clip.EntertainmentService, cancellationToken);
+    public Task<HueEntertainmentServiceGet> GetEntertainmentServiceAsync(Guid id, CancellationToken cancellationToken = default) => GetAsync<HueEntertainmentServiceGet>(HueEndpoints.Clip.EntertainmentService, id, cancellationToken);
     #endregion
 
     #region Abstract Methods
-    protected abstract Task<ImmutableArray<T>> GetAll<T>(string endpoint) where T : HueResourceGet;
-    protected abstract Task<T> Get<T>(string endpoint, Guid id) where T : HueResourceGet;
-    protected abstract Task Put<T>(string endpoint, Guid id, T value) where T : HueResourcePut;
+    protected abstract Task<ImmutableArray<T>> GetAllAsync<T>(string endpoint, CancellationToken cancellationToken) where T : HueResourceGet;
+    protected abstract Task<T> GetAsync<T>(string endpoint, Guid id, CancellationToken cancellationToken) where T : HueResourceGet;
+    protected abstract Task PutAsync<T>(string endpoint, Guid id, T value, CancellationToken cancellationToken) where T : HueResourcePut;
 
     public abstract void Dispose();
     #endregion
 
     #region Json
-    public static readonly JsonSerializerOptions JsonOptions = GetSerializerOptions(readOnly: true);
-    private static JsonSerializerOptions GetSerializerOptions(bool readOnly = false)
+    /// <summary>
+    /// This instance can be modified by the inheriting class if necessary.
+    /// </summary>
+    protected readonly JsonSerializerOptions JsonOptions = new()
     {
-        JsonSerializerOptions opt = new()
-        {
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-            PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
-        };
-
-        if (readOnly)
-            opt.MakeReadOnly();
-        return opt;
-    }
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+    };
     #endregion
 }

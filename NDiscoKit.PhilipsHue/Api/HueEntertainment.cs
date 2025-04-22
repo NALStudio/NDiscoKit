@@ -49,10 +49,16 @@ public sealed class HueEntertainment : IDisposable
 
     public static async Task<HueEntertainment?> ConnectAsync(string bridgeIp, HueCredentials credentials, Guid entertainmentConfigurationId)
     {
+        using LocalHueApi hue = new(bridgeIp, credentials);
+        return await ConnectAsync(hue, entertainmentConfigurationId);
+    }
+
+    public static async Task<HueEntertainment?> ConnectAsync(LocalHueApi hue, Guid entertainmentConfigurationId)
+    {
         HueEntertainment entertainment = new(entertainmentConfigurationId);
         try
         {
-            await entertainment.InternalConnectAsync(bridgeIp, credentials, entertainmentConfigurationId);
+            await entertainment.InternalConnectAsync(hue, entertainmentConfigurationId);
         }
         catch
         {
@@ -62,17 +68,16 @@ public sealed class HueEntertainment : IDisposable
 
         return entertainment;
     }
-    private async Task InternalConnectAsync(string bridgeIp, HueCredentials credentials, Guid entertainmentConfigurationId)
+    private async Task InternalConnectAsync(LocalHueApi hue, Guid entertainmentConfigurationId)
     {
-        using (LocalHueApi hueApi = new(bridgeIp, credentials))
-            await hueApi.UpdateEntertainmentConfiguration(entertainmentConfigurationId, new HueEntertainmentConfigurationPut() { Action = HueAction.Start });
+        await hue.UpdateEntertainmentConfigurationAsync(entertainmentConfigurationId, new HueEntertainmentConfigurationPut() { Action = HueAction.Start });
 
-        BasicTlsPskIdentity pskIdentity = new(credentials.AppKey, HexConverter.DecodeHex(credentials.ClientKey));
+        BasicTlsPskIdentity pskIdentity = new(hue.Credentials.AppKey, HexConverter.DecodeHex(hue.Credentials.ClientKey));
 
         DtlsClient dtlsClient = new(null, pskIdentity);
 
         DtlsClientProtocol clientProtocol = new(new SecureRandom());
-        await socket.ConnectAsync(bridgeIp, 2100); // We connect onto the host IP, not the Uri address
+        await socket.ConnectAsync(hue.BridgeIp, 2100); // We connect onto the host IP, not the Uri address
 
         udp = new UdpTransport(socket);
         dtls = clientProtocol.Connect(dtlsClient, udp);

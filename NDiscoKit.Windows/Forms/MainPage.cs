@@ -4,6 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Web.WebView2.Core;
 using MudBlazor.Services;
+using NDiscoKit.Services;
+using NDiscoKit.Windows.Services;
 
 namespace NDiscoKit.Windows.Forms;
 
@@ -52,6 +54,10 @@ public partial class MainPage : Form
         services.AddWindowsFormsBlazorWebView();
         services.AddScoped(_ => Program.HttpClient);
         services.AddMudServices();
+
+        services.AddNDiscoKitServices(
+            appDataService: new WindowsAppDataService()
+        );
 
 #if DEBUG
         services.AddBlazorWebViewDeveloperTools();

@@ -12,5 +12,5 @@ public class HueEntertainmentConfigurationGet : HueResourceGet
     public HueResourceIdentifier? ActiveStreamer { get; init; }
     public required HueEntertainmentStreamProxyGet StreamProxy { get; init; }
     public required ImmutableArray<HueEntertainmentChannelGet> Channels { get; init; }
-    public required HueLocations<HueServiceLocationGet> Locations { get; init; }
+    public required HueLocations<HueEntertainmentServiceLocationGet> Locations { get; init; }
 }

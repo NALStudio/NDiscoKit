@@ -1,3 +1,14 @@
 ﻿@page "/lights"
 
-<h3>LightsPage</h3>
+@using NDiscoKit.Components.Layout
+@using NDiscoKit.Components.Lights
+@using NDiscoKit.Icons
+
+<MudExpansionPanels Class="mt-8">
+    <CustomExpansionPanel Title="Overview" BoldTitle Icon="@(Icons.Material.Rounded.Dashboard)" Expanded="true">
+        TESTI
+    </CustomExpansionPanel>
+    <CustomExpansionPanel Title="Philips Hue" Icon="@(HueIcons.Logo)">
+        <HueControls />
+    </CustomExpansionPanel>
+</MudExpansionPanels>

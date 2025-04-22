@@ -1,11 +1,14 @@
 ﻿using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Routing;
 
-namespace NDiscoKit.Components;
+namespace NDiscoKit.Components.Layout;
 
 /// <summary>
-/// Set <see cref="MudBlazor.MudNavMenu.Color"/> to <see cref="MudBlazor.Color.Default"/> to display this component correctly.
+/// A white <see cref="MudBlazor.MudNavLink"/>.
 /// </summary>
+/// <remarks>
+/// Set <see cref="MudBlazor.MudNavMenu.Color"/> to <see cref="MudBlazor.Color.Default"/> to display this component correctly.
+/// </remarks>
 public partial class CustomNavLink
 {
     [Parameter]

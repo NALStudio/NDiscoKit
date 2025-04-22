@@ -6,16 +6,21 @@ using NDiscoKit.PhilipsHue.Models.Exceptions;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Net.Http.Json;
-using System.Text.Json;
+using System.Net.Mime;
 
 namespace NDiscoKit.PhilipsHue.Api;
 public class LocalHueApi : HueApi
 {
+    // Exposed for the entertainment API
+    public string BridgeIp { get; }
+    public HueCredentials Credentials { get; }
+
     private readonly HueHttpClient http;
 
     public LocalHueApi(string bridgeIp, HueCredentials credentials)
     {
-        http = new HueHttpClient(HueEndpoints.BaseAddress(bridgeIp, HueEndpoints.ClipV2));
+        BridgeIp = bridgeIp;
+        http = new HueHttpClient(HueEndpoints.BaseAddress(bridgeIp));
         http.DefaultRequestHeaders.Add("hue-application-key", credentials.AppKey);
     }
 
@@ -25,23 +30,22 @@ public class LocalHueApi : HueApi
         GC.SuppressFinalize(this);
     }
 
-
-    protected override async Task<ImmutableArray<T>> GetAll<T>(string endpoint)
+    protected override async Task<ImmutableArray<T>> GetAllAsync<T>(string endpoint, CancellationToken cancellationToken)
     {
-        HttpResponseMessage resp = await http.GetAsync(endpoint);
-        return await HandleResponse<T>(resp);
+        HttpResponseMessage resp = await http.GetAsync(HueEndpoints.Clip.GetEndpoint(endpoint), cancellationToken);
+        return await HandleResponse<T>(resp, cancellationToken);
     }
 
-    protected override async Task<T> Get<T>(string endpoint, Guid id)
+    protected override async Task<T> GetAsync<T>(string endpoint, Guid id, CancellationToken cancellationToken)
     {
-        ImmutableArray<T> values = await GetAll<T>(HueEndpoints.Clip.WithId(endpoint, id));
+        ImmutableArray<T> values = await GetAllAsync<T>(HueEndpoints.Clip.GetEndpoint(endpoint, id), cancellationToken);
         return EnsureSingle(values);
     }
 
-    protected override async Task Put<T>(string endpoint, Guid id, T value)
+    protected override async Task PutAsync<T>(string endpoint, Guid id, T value, CancellationToken cancellationToken)
     {
-        HttpResponseMessage resp = await http.PutAsJsonAsync(HueEndpoints.Clip.WithId(endpoint, id), value, JsonOptions);
-        ImmutableArray<HueResourceIdentifier> result = await HandleResponse<HueResourceIdentifier>(resp);
+        HttpResponseMessage resp = await http.PutAsJsonAsync(HueEndpoints.Clip.GetEndpoint(endpoint, id), value, JsonOptions, cancellationToken);
+        ImmutableArray<HueResourceIdentifier> result = await HandleResponse<HueResourceIdentifier>(resp, cancellationToken);
         Debug.Assert(result.Length == 1 && result[0].ResourceId == id);
     }
 
@@ -52,19 +56,13 @@ public class LocalHueApi : HueApi
         return values[0];
     }
 
-    private static async Task<ImmutableArray<T>> HandleResponse<T>(HttpResponseMessage response)
+    private async Task<ImmutableArray<T>> HandleResponse<T>(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         HueResponse<T>? resp;
-        try
-        {
-            resp = await response.Content.ReadFromJsonAsync<HueResponse<T>>(JsonOptions);
-        }
-        catch (JsonException e)
-        {
-            string content = await response.Content.ReadAsStringAsync();
-            e.Data.Add("Response Content", content);
-            throw;
-        }
+        if (response.Content.Headers.ContentType?.MediaType == MediaTypeNames.Application.Json)
+            resp = await response.Content.ReadFromJsonAsync<HueResponse<T>>(JsonOptions, cancellationToken);
+        else
+            resp = null;
 
         if (!response.IsSuccessStatusCode)
             throw HueRequestException.FromResponse(response.StatusCode, resp?.Errors);

@@ -1,0 +1,39 @@
+﻿@using System.Net
+@using NDiscoKit.Icons
+@using NDiscoKit.Models.Settings
+@using NDiscoKit.PhilipsHue.Models.Clip.Get
+
+@if (bridgesTask.HasValue && bridgesTask.Value.Task.IsCompleted)
+{
+    <MudDynamicTabs Position="Position.Left" AddTab="@AddBridge" CloseTab="@RemoveBridge">
+        @foreach (BridgeData b in bridgesTask.Value.Task.Result)
+        {
+            <MudTabPanel ID="b" Icon="@(HueIcons.BridgeV2)" Text="@(b.Settings.BridgeIp)">
+                <MudPaper Outlined Class="ml-4 pa-4" Style="flex:1">
+                    <MudStack>
+                        @{
+                            bool couldNotConnect = b.CouldNotConnect;
+                            Guid? entId = b.Settings.EntertainmentAreaId;
+
+                            if (couldNotConnect)
+                            {
+                                <MudText Color="Color.Error">Could not connect to bridge.</MudText>
+                            }
+
+                            <MudSelect T="Guid?" Disabled="@couldNotConnect" Error="@(!entId.HasValue)" ErrorText="Not Selected" Value="@(entId)" Label="Entertainment Area" ShrinkLabel ToStringFunc="@(b.GetEntertainmentAreaSelectDisplayName)">
+                                @foreach (HueEntertainmentConfigurationGet ent in b.EntertainmentAreas?.Values ?? Enumerable.Empty<HueEntertainmentConfigurationGet>())
+                                {
+                                    <MudSelectItem T="Guid?" Value="@(ent.Id)">@(ent.Metadata.Name)</MudSelectItem>
+                                }
+                            </MudSelect>
+                        }
+                    </MudStack>
+                </MudPaper>
+            </MudTabPanel>
+        }
+    </MudDynamicTabs>
+}
+else
+{
+    <MudSkeleton Height="300px" SkeletonType="SkeletonType.Rectangle" />
+}

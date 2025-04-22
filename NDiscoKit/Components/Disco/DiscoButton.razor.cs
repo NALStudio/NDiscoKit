@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Components;
 using MudBlazor;
 
-namespace NDiscoKit.Components;
+namespace NDiscoKit.Components.Disco;
 public partial class DiscoButton
 {
     [Parameter]

@@ -1,0 +1,8 @@
+﻿<MudExpansionPanel Class="@Class" Style="@Style" Expanded="@Expanded" ExpandedChanged="@ExpandedChanged" ChildContent="@ChildContent">
+    <TitleContent>
+        <MudStack Style=@(BoldTitle ? "font-weight: bold" : null) AlignItems="AlignItems.Center" Spacing="4" Row>
+            <MudIcon Icon="@Icon" />
+            @Title
+        </MudStack>
+    </TitleContent>
+</MudExpansionPanel>
