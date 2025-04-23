@@ -11,5 +11,6 @@ public static class ServiceExtensions
         services.AddSingleton(appDataService);
 
         services.AddSingleton<SettingsService>();
+        services.AddSingleton<DiscoLightService>();
     }
 }

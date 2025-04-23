@@ -28,12 +28,13 @@ public class SettingsService
         if (_settings is not null)
             return ValueTask.FromResult(_settings);
         else
-            return new ValueTask<Settings>(GetOrLoadSettingsInsideLockAsync());
+            return new ValueTask<Settings>(GetOrLoadSettingsAsync(acquireLock: true));
     }
 
-    private async Task<Settings> GetOrLoadSettingsInsideLockAsync()
+    private async Task<Settings> GetOrLoadSettingsAsync(bool acquireLock)
     {
-        await _settingsLock.WaitAsync();
+        if (acquireLock)
+            await _settingsLock.WaitAsync();
         try
         {
             // The settings value might have been set while we were waiting for the settings lock
@@ -53,17 +54,31 @@ public class SettingsService
         }
         finally
         {
-            _settingsLock.Release();
+            if (acquireLock)
+                _settingsLock.Release();
         }
     }
 
     public async Task UpdateSettings(Func<Settings, Settings> updateFunc)
     {
-        Settings s = await GetSettingsAsync();
-        s = updateFunc(s);
-        _settings = s;
-        await appData.SetAsync("settings", s, serializerOptions);
+        await _settingsLock.WaitAsync();
 
-        OnSettingsChanged?.Invoke(s);
+        Settings updated;
+        try
+        {
+            Settings s = await GetOrLoadSettingsAsync(acquireLock: false);
+            updated = updateFunc(s);
+            _settings = updated;
+
+            // SetAsync inside lock so that the data on disk isn't updated out of order
+            await appData.SetAsync("settings", updated, serializerOptions);
+        }
+        finally
+        {
+            _settingsLock.Release();
+        }
+
+
+        OnSettingsChanged?.Invoke(updated);
     }
 }

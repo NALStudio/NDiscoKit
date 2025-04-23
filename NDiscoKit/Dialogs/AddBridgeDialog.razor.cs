@@ -59,8 +59,7 @@ public partial class AddBridgeDialog : IDisposable
             HueBridgeSettings settings = new()
             {
                 BridgeIp = bridge.IpAddress,
-                AppKey = credentials.Value.AppKey,
-                ClientKey = credentials.Value.ClientKey,
+                Credentials = credentials.Value
             };
             MudDialog.Close(settings);
         }

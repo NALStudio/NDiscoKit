@@ -17,6 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\NDiscoKit.Lights\NDiscoKit.Lights.csproj" />
     <ProjectReference Include="..\NDiscoKit.PhilipsHue\NDiscoKit.PhilipsHue.csproj" />
   </ItemGroup>
 

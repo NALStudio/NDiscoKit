@@ -22,11 +22,14 @@ public class HueLightHandler : LightHandler
     public LocalHueApi Hue { get; }
     public Guid EntertainmentArea { get; }
 
+    public override string DisplayName { get; }
     public override ImmutableArray<Light> Lights { get; }
     private readonly HueXYEntertainmentChannel[] channels;
 
-    public HueLightHandler(LocalHueApi hue, bool disposeHue, Guid entertainmentArea, IEnumerable<Light> lights)
+    private HueLightHandler(string displayName, LocalHueApi hue, bool disposeHue, Guid entertainmentArea, IEnumerable<Light> lights)
     {
+        DisplayName = displayName;
+
         this.disposeHue = disposeHue;
         Hue = hue;
         EntertainmentArea = entertainmentArea;
@@ -35,7 +38,7 @@ public class HueLightHandler : LightHandler
         channels = new HueXYEntertainmentChannel[Lights.Length];
     }
 
-    public static async Task<HueLightHandler?> TryCreateAsync(LocalHueApi hue, Guid entertainmentAreaId, bool disposeHue = false)
+    public static async Task<HueLightHandler> CreateAsync(LocalHueApi hue, Guid entertainmentAreaId, bool disposeHue = false)
     {
         try
         {
@@ -45,7 +48,7 @@ public class HueLightHandler : LightHandler
             foreach (HueEntertainmentChannelGet c in ent.Channels)
                 lights.Add(await GetLight(hue, ent, c));
 
-            return new HueLightHandler(hue, disposeHue, entertainmentAreaId, lights);
+            return new HueLightHandler(displayName: hue.BridgeIp, hue, disposeHue, entertainmentAreaId, lights);
         }
         catch
         {
@@ -71,10 +74,14 @@ public class HueLightHandler : LightHandler
         {
             var service = channel.Members[0].Service;
             if (service.ResourceType.IsEntertainmentService)
-                light = await hue.GetLightAsync(service.ResourceId);
+            {
+                HueEntertainmentServiceGet entertainmentService = await hue.GetEntertainmentServiceAsync(service.ResourceId);
+                if (entertainmentService.RendererReference?.ResourceType.IsLight == true)
+                    light = await hue.GetLightAsync(entertainmentService.RendererReference.ResourceId);
+            }
         }
 
-        return new HueLight(hue, channel.ChannelId, light?.Id)
+        return new HueLight(hue, channel.ChannelId, light?.Id, light?.ProductData?.Archetype) // ProductData is almost always null :(
         {
             DisplayName = light?.Metadata.Name,
             Position = new LightPosition(channel.Position.X, channel.Position.Y, channel.Position.Z),
@@ -128,6 +135,7 @@ public class HueLightHandler : LightHandler
             Hue.Dispose();
 
         disposed = true;
+        GC.SuppressFinalize(this);
         return ValueTask.CompletedTask;
     }
 }

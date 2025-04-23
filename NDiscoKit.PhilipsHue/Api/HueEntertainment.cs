@@ -11,6 +11,8 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace NDiscoKit.PhilipsHue.Api;
@@ -22,7 +24,9 @@ public sealed class HueEntertainment : IDisposable
     private const int payloadHeaderLength = 52; // includes entertainment configuration id
     private const int maxPayloadLength = payloadHeaderLength + (maxChannelsCount * IHueEntertainmentChannel.BytesPerChannel);
 
+    private readonly Lock sendLock;
     private readonly byte[] payload;
+    private byte sequenceId = byte.MaxValue;
 
     private readonly Socket socket;
 
@@ -31,10 +35,11 @@ public sealed class HueEntertainment : IDisposable
 
     private DtlsTransport? dtls;
     private UdpTransport? udp;
-    private byte sequenceId = byte.MaxValue;
 
     private HueEntertainment(Guid entertainmentConfigurationId)
     {
+        sendLock = new();
+
         payload = ConstructDefaultPayload(entertainmentConfigurationId);
 
         socket = new(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
@@ -58,7 +63,8 @@ public sealed class HueEntertainment : IDisposable
         HueEntertainment entertainment = new(entertainmentConfigurationId);
         try
         {
-            await entertainment.InternalConnectAsync(hue, entertainmentConfigurationId);
+            await hue.UpdateEntertainmentConfigurationAsync(entertainmentConfigurationId, new HueEntertainmentConfigurationPut() { Action = HueAction.Start });
+            await entertainment.ConnectDtls(hue);
         }
         catch
         {
@@ -68,10 +74,8 @@ public sealed class HueEntertainment : IDisposable
 
         return entertainment;
     }
-    private async Task InternalConnectAsync(LocalHueApi hue, Guid entertainmentConfigurationId)
+    private async Task ConnectDtls(LocalHueApi hue)
     {
-        await hue.UpdateEntertainmentConfigurationAsync(entertainmentConfigurationId, new HueEntertainmentConfigurationPut() { Action = HueAction.Start });
-
         BasicTlsPskIdentity pskIdentity = new(hue.Credentials.AppKey, HexConverter.DecodeHex(hue.Credentials.ClientKey));
 
         DtlsClient dtlsClient = new(null, pskIdentity);
@@ -90,22 +94,28 @@ public sealed class HueEntertainment : IDisposable
     public void Send(ReadOnlySpan<HueRGBEntertainmentChannel> channels) => Send(0x00, channels);
     public void Send(ReadOnlySpan<HueXYEntertainmentChannel> channels) => Send(0x01, channels);
 
-    /// <summary>
-    /// Not thread-safe. We share buffer and sequence id.
-    /// </summary>
     private void Send<T>(byte colorSpace, ReadOnlySpan<T> channels) where T : IHueEntertainmentChannel
     {
-        unchecked // unchecked to allow to roll back to zero after 255
-        {
-            sequenceId++; // sequenceId is initialized with byte.MaxValue so the first value sent to the bridge will be 0
-        }
-
         if (channels.Length > maxChannelsCount)
             throw new ArgumentException($"Maximum 20 slots of color data supported, got: {channels.Length}");
 
-        Debug.Assert(maxPayloadLength < 256);
-        int length = UpdatePayload(payload, sequenceId, colorSpace, in channels);
-        Send(payload, length);
+        if (!sendLock.TryEnter())
+            throw new InvalidOperationException("Send function is already running on another thread.");
+        try
+        {
+            unchecked // unchecked to allow to roll back to zero after 255
+            {
+                // sequenceId is initialized with byte.MaxValue so the first value sent to the bridge will be 0
+                sequenceId++;
+            }
+
+            int length = UpdatePayload(payload, sequenceId, colorSpace, in channels);
+            Send(payload, length);
+        }
+        finally
+        {
+            sendLock.Exit();
+        }
     }
 
     private static byte[] ConstructDefaultPayload(Guid entertainmentConfiguration)

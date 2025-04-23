@@ -2,13 +2,13 @@
 
 @using NDiscoKit.Components.Layout
 @using NDiscoKit.Components.Lights
-@using NDiscoKit.Icons
+@using NDiscoKit.CustomIcons
 
 <MudExpansionPanels Class="mt-8">
     <CustomExpansionPanel Title="Overview" BoldTitle Icon="@(Icons.Material.Rounded.Dashboard)" Expanded="true">
-        TESTI
+        <LightsOverview />
     </CustomExpansionPanel>
     <CustomExpansionPanel Title="Philips Hue" Icon="@(HueIcons.Logo)">
-        <HueControls />
+        <LightsHueBridges />
     </CustomExpansionPanel>
 </MudExpansionPanels>

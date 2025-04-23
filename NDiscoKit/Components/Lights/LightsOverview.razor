@@ -1,0 +1,10 @@
+﻿<MudTreeView T="TreeData" @ref=mudTree Items="@GetInitialData()" ServerData="@LoadData" ReadOnly>
+    <ItemTemplate>
+        <MudTreeViewItem Value="@(context.Value)"
+                            Text="@(context.Value?.Name)"
+                            Icon="@(context.Icon)"
+                            CanExpand="@(context.Expandable)"
+                            Items="@(context.Children)"
+                            ItemsChanged="@((IReadOnlyCollection<TreeItemData<TreeData>> items) => OnItemsLoaded(context, items))" />
+    </ItemTemplate>
+</MudTreeView>

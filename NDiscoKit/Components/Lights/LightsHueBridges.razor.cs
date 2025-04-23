@@ -4,14 +4,13 @@ using MudBlazor;
 using NDiscoKit.Dialogs;
 using NDiscoKit.Models.Settings;
 using NDiscoKit.PhilipsHue.Api;
-using NDiscoKit.PhilipsHue.Models;
 using NDiscoKit.PhilipsHue.Models.Clip.Get;
 using NDiscoKit.Services;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 
 namespace NDiscoKit.Components.Lights;
-public partial class HueControls : IDisposable
+public partial class LightsHueBridges : IDisposable
 {
     private readonly record struct BridgeData
     {
@@ -35,7 +34,7 @@ public partial class HueControls : IDisposable
     }
 
     [Inject]
-    private ILogger<HueControls> Logger { get; init; } = default!;
+    private ILogger<LightsHueBridges> Logger { get; init; } = default!;
 
     [Inject]
     private SettingsService Settings { get; init; } = default!;
@@ -59,43 +58,55 @@ public partial class HueControls : IDisposable
         bridgesTask?.Cancel.Cancel();
 
         CancellationTokenSource cancel = new();
-        Task<ImmutableArray<BridgeData>> task = LoadBridgesAsync(obj.HueBridges, cancel.Token);
+        Task<ImmutableArray<BridgeData>> task = LoadBridgesAsync(bridgesTask?.Task, obj.HueBridges, cancel.Token);
         bridgesTask = (task, cancel);
         task.ContinueWith(_ => StateHasChanged(), TaskContinuationOptions.ExecuteSynchronously);
 
         StateHasChanged();
     }
 
-    private async Task<ImmutableArray<BridgeData>> LoadBridgesAsync(ImmutableArray<HueBridgeSettings> bridges, CancellationToken cancellationToken)
+    private async Task<ImmutableArray<BridgeData>> LoadBridgesAsync(Task<ImmutableArray<BridgeData>>? PreviousData, ImmutableArray<HueBridgeSettings> bridges, CancellationToken cancellationToken)
     {
+        ImmutableDictionary<string, ImmutableDictionary<Guid, HueEntertainmentConfigurationGet>?> existingConfigs = ImmutableDictionary<string, ImmutableDictionary<Guid, HueEntertainmentConfigurationGet>?>.Empty;
+        if (PreviousData?.IsCompletedSuccessfully == true)
+            existingConfigs = PreviousData.Result.ToImmutableDictionary(key => key.Settings.BridgeIp, value => value.EntertainmentAreas);
+
         ImmutableArray<BridgeData>.Builder bridgeBuilder = ImmutableArray.CreateBuilder<BridgeData>(initialCapacity: bridges.Length);
 
         foreach (HueBridgeSettings settings in bridges)
         {
-            // Throttle the requests a bit
-            await Task.Delay(500, cancellationToken);
+            using LocalHueApi hue = new(settings.BridgeIp, settings.Credentials);
 
-            using LocalHueApi hue = new(settings.BridgeIp, new HueCredentials(settings.AppKey, settings.ClientKey));
+            ImmutableDictionary<Guid, HueEntertainmentConfigurationGet>? entertainmentAreas;
+            if (existingConfigs.TryGetValue(settings.BridgeIp, out ImmutableDictionary<Guid, HueEntertainmentConfigurationGet>? existingAreas))
+            {
+                entertainmentAreas = existingAreas;
+            }
+            else
+            {
+                // Throttle the requests a bit
+                await Task.Delay(500, cancellationToken);
 
-            ImmutableArray<HueEntertainmentConfigurationGet>? entertainmentAreas;
-            try
-            {
-                entertainmentAreas = await hue.GetEntertainmentConfigurationsAsync(cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "Could not connect to bridge.");
-                entertainmentAreas = null;
+                try
+                {
+                    ImmutableArray<HueEntertainmentConfigurationGet> configs = await hue.GetEntertainmentConfigurationsAsync(cancellationToken);
+                    entertainmentAreas = configs.ToImmutableDictionary(key => key.Id);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Could not connect to bridge.");
+                    entertainmentAreas = null;
+                }
             }
 
             bridgeBuilder.Add(new BridgeData()
             {
                 Settings = settings,
-                EntertainmentAreas = entertainmentAreas?.ToImmutableDictionary(key => key.Id)
+                EntertainmentAreas = entertainmentAreas
             });
         }
 
@@ -107,6 +118,19 @@ public partial class HueControls : IDisposable
         Settings.OnSettingsChanged -= SettingsChanged;
         bridgesTask?.Cancel.Cancel();
         GC.SuppressFinalize(this);
+    }
+
+    private async Task ChangeEntertainmentArea(HueBridgeSettings settings, Guid? entId)
+    {
+        await Settings.UpdateSettings(
+            s => s with
+            {
+                HueBridges = s.HueBridges.Replace(settings, settings with
+                {
+                    EntertainmentAreaId = entId
+                })
+            }
+        );
     }
 
     private async Task AddBridge()

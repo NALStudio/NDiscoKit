@@ -44,6 +44,8 @@ internal class HueRequestException : HueException
             sb.Append("No additional error data was provided by the API.\n");
         }
 
+        sb.AppendLine();
+
         return new HueRequestException(sb.ToString());
     }
 

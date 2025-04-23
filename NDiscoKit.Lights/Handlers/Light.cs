@@ -12,6 +12,8 @@ public abstract class Light
 
     public NDKColor Color { get; set; } = NDKColor.WhitePoints.D65;
 
+    public abstract bool CanSignal { get; }
+
     /// <summary>
     /// Signal for <paramref name="duration"/> using <see cref="Color" />
     /// </summary>

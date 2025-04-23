@@ -1,5 +1,5 @@
 ﻿@using System.Net
-@using NDiscoKit.Icons
+@using NDiscoKit.CustomIcons
 @using NDiscoKit.Models.Settings
 @using NDiscoKit.PhilipsHue.Models.Clip.Get
 
@@ -20,7 +20,11 @@
                                 <MudText Color="Color.Error">Could not connect to bridge.</MudText>
                             }
 
-                            <MudSelect T="Guid?" Disabled="@couldNotConnect" Error="@(!entId.HasValue)" ErrorText="Not Selected" Value="@(entId)" Label="Entertainment Area" ShrinkLabel ToStringFunc="@(b.GetEntertainmentAreaSelectDisplayName)">
+                            <MudSelect T="Guid?" Disabled="@couldNotConnect"
+                                       Error="@(!entId.HasValue)" ErrorText="Not Selected"
+                                       Value="@(entId)" ValueChanged="@(id => ChangeEntertainmentArea(b.Settings, id))"
+                                       Label="Entertainment Area" ShrinkLabel
+                                       ToStringFunc="@(b.GetEntertainmentAreaSelectDisplayName)">
                                 @foreach (HueEntertainmentConfigurationGet ent in b.EntertainmentAreas?.Values ?? Enumerable.Empty<HueEntertainmentConfigurationGet>())
                                 {
                                     <MudSelectItem T="Guid?" Value="@(ent.Id)">@(ent.Metadata.Name)</MudSelectItem>
@@ -35,5 +39,5 @@
 }
 else
 {
-    <MudSkeleton Height="300px" SkeletonType="SkeletonType.Rectangle" />
+    <MudSkeleton Height="100px" SkeletonType="SkeletonType.Rectangle" />
 }

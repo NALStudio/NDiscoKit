@@ -32,14 +32,19 @@ public class LocalHueApi : HueApi
 
     protected override async Task<ImmutableArray<T>> GetAllAsync<T>(string endpoint, CancellationToken cancellationToken)
     {
-        HttpResponseMessage resp = await http.GetAsync(HueEndpoints.Clip.GetEndpoint(endpoint), cancellationToken);
-        return await HandleResponse<T>(resp, cancellationToken);
+        return await InternalGetAsync<T>(HueEndpoints.Clip.GetEndpoint(endpoint), cancellationToken);
     }
 
     protected override async Task<T> GetAsync<T>(string endpoint, Guid id, CancellationToken cancellationToken)
     {
-        ImmutableArray<T> values = await GetAllAsync<T>(HueEndpoints.Clip.GetEndpoint(endpoint, id), cancellationToken);
+        ImmutableArray<T> values = await InternalGetAsync<T>(HueEndpoints.Clip.GetEndpoint(endpoint, id), cancellationToken);
         return EnsureSingle(values);
+    }
+
+    private async Task<ImmutableArray<T>> InternalGetAsync<T>(string fullEndpoint, CancellationToken cancellationToken)
+    {
+        HttpResponseMessage resp = await http.GetAsync(fullEndpoint, cancellationToken);
+        return await HandleResponse<T>(resp, cancellationToken);
     }
 
     protected override async Task PutAsync<T>(string endpoint, Guid id, T value, CancellationToken cancellationToken)
@@ -71,6 +76,6 @@ public class LocalHueApi : HueApi
         if (resp.Errors.Length > 0)
             throw HueRequestException.FromErrors(resp.Errors);
 
-        return resp.Data;
+        return resp.Data!.Value; // Data should not be null if status code is success
     }
 }

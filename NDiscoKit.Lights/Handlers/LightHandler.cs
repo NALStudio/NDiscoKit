@@ -3,6 +3,7 @@
 namespace NDiscoKit.Lights.Handlers;
 public abstract class LightHandler : IAsyncDisposable
 {
+    public abstract string DisplayName { get; }
     public abstract ImmutableArray<Light> Lights { get; }
 
     /// <summary>
