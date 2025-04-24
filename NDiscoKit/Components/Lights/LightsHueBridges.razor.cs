@@ -37,6 +37,9 @@ public partial class LightsHueBridges : IDisposable
     private ILogger<LightsHueBridges> Logger { get; init; } = default!;
 
     [Inject]
+    private ILogger<LocalHueApi> HueLogger { get; init; } = default!;
+
+    [Inject]
     private SettingsService Settings { get; init; } = default!;
 
     [Inject]
@@ -75,7 +78,7 @@ public partial class LightsHueBridges : IDisposable
 
         foreach (HueBridgeSettings settings in bridges)
         {
-            using LocalHueApi hue = new(settings.BridgeIp, settings.Credentials);
+            using LocalHueApi hue = new(settings.BridgeIp, settings.Credentials, HueLogger);
 
             ImmutableDictionary<Guid, HueEntertainmentConfigurationGet>? entertainmentAreas;
             if (existingConfigs.TryGetValue(settings.BridgeIp, out ImmutableDictionary<Guid, HueEntertainmentConfigurationGet>? existingAreas))

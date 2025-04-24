@@ -10,6 +10,7 @@ public abstract class HueApi : IDisposable
     #region Public Methods
     public Task<ImmutableArray<HueLightGet>> GetLightsAsync(CancellationToken cancellationToken = default) => GetAllAsync<HueLightGet>(HueEndpoints.Clip.Light, cancellationToken);
     public Task<HueLightGet> GetLightAsync(Guid id, CancellationToken cancellationToken = default) => GetAsync<HueLightGet>(HueEndpoints.Clip.Light, id, cancellationToken);
+    public Task UpdateLightAsync(Guid id, HueLightPut value, CancellationToken cancellationToken = default) => PutAsync(HueEndpoints.Clip.Light, id, value, cancellationToken);
 
     public Task<ImmutableArray<HueEntertainmentConfigurationGet>> GetEntertainmentConfigurationsAsync(CancellationToken cancellationToken = default) => GetAllAsync<HueEntertainmentConfigurationGet>(HueEndpoints.Clip.EntertainmentConfiguration, cancellationToken);
     public Task<HueEntertainmentConfigurationGet> GetEntertainmentConfigurationAsync(Guid id, CancellationToken cancellationToken = default) => GetAsync<HueEntertainmentConfigurationGet>(HueEndpoints.Clip.EntertainmentConfiguration, id, cancellationToken);

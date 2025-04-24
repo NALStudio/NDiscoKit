@@ -2,8 +2,8 @@
 
 namespace NDiscoKit.PhilipsHue.Enums.Clip;
 
-[JsonConverter(typeof(JsonStringEnumConverter<HueAction>))]
-public enum HueAction
+[JsonConverter(typeof(JsonStringEnumConverter<HueStateAction>))]
+public enum HueStateAction
 {
     [JsonStringEnumMemberName("start")]
     Start,

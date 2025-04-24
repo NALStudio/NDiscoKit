@@ -1,10 +1,41 @@
-﻿<MudTreeView T="TreeData" @ref=mudTree Items="@GetInitialData()" ServerData="@LoadData" ReadOnly>
-    <ItemTemplate>
-        <MudTreeViewItem Value="@(context.Value)"
-                            Text="@(context.Value?.Name)"
-                            Icon="@(context.Icon)"
-                            CanExpand="@(context.Expandable)"
-                            Items="@(context.Children)"
-                            ItemsChanged="@((IReadOnlyCollection<TreeItemData<TreeData>> items) => OnItemsLoaded(context, items))" />
-    </ItemTemplate>
-</MudTreeView>
+﻿@using NDiscoKit.Lights.Handlers
+<MudList T="object" ReadOnly>
+    <MudListSubheader>
+        <MudStack Row AlignItems="AlignItems.Center" StretchItems="StretchItems.Start">
+            <div>
+                <MudText Typo="Typo.h6" Inline>Lights Discovered </MudText>
+
+                @if (lightHandlers.HasValue)
+                {
+                    <MudText Typo="Typo.h6" Inline>(@(lightHandlers?.Sum(static handler => handler.Lights.Length)))</MudText>
+                }
+            </div>
+
+            <MudButton Disabled="@(lightHandlers.HasValue || lightHandlersLoading)" OnClick="@LoadLightsAsync" Variant="Variant.Filled" Color="Color.Primary" DropShadow="false">
+                @if (lightHandlersLoading)
+                {
+                    <MudProgressCircular Class="ml-n1 mr-2" Size="Size.Small" Indeterminate />
+                }
+
+                <MudText Typo="Typo.inherit">Load Lights</MudText>
+            </MudButton>
+        </MudStack>
+    </MudListSubheader>
+
+    @foreach (LightHandler handler in lightHandlers ?? Enumerable.Empty<LightHandler>())
+    {
+        <MudListItem Icon="@(GetHandlerIcon(handler))" Text="@(handler.DisplayName)">
+            <NestedList>
+                @foreach (Light light in handler.Lights)
+                {
+                    <MudListItem Icon="@(GetLightIcon(light))">
+                        <MudStack Row StretchItems="StretchItems.Start" AlignItems="AlignItems.Center">
+                            <MudText Typo="Typo.inherit">@(light.DisplayName)</MudText>
+                            <MudIconButton Disabled="@(!light.CanIdentify)" Icon="@(Icons.Material.Rounded.LocationSearching)" Size="Size.Small" OnClick="@(_ => SignalLightAsync(light))" />
+                        </MudStack>
+                    </MudListItem>
+                }
+            </NestedList>
+        </MudListItem>
+    }
+</MudList>

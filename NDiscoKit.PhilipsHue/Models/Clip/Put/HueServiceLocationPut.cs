@@ -6,5 +6,5 @@ public sealed class HueServiceLocationPut
 {
     public required HueResourceIdentifier Service { get; set; }
     public required ImmutableArray<HuePosition> Positions { get; set; }
-    public double EqualizationFactor { get; set; }
+    public double? EqualizationFactor { get; set; }
 }

@@ -7,7 +7,7 @@ public sealed class HueEntertainmentConfigurationPut : HueResourcePut
 {
     public HueMetadata? Metadata { get; set; }
     public HueEntertainmentConfigurationType? Type { get; set; }
-    public HueAction? Action { get; set; }
+    public HueStateAction? Action { get; set; }
     public HueEntertainmentStreamProxyPut? StreamProxy { get; set; }
     public HueLocations<HueServiceLocationPut>? Locations { get; set; }
 }

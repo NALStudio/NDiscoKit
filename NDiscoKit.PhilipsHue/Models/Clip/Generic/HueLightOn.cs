@@ -24,5 +24,6 @@ public readonly struct HueLightOn : IEquatable<HueLightOn>
     public override bool Equals(object? obj) => obj is HueLightOn on && Equals(on);
     public static bool operator ==(HueLightOn left, HueLightOn right) => left.Equals(right);
     public static bool operator !=(HueLightOn left, HueLightOn right) => !left.Equals(right);
+    public static bool operator !(HueLightOn on) => on.State ? Off : On;
     public override int GetHashCode() => State.GetHashCode();
 }

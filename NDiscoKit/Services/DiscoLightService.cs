@@ -6,18 +6,24 @@ using NDiscoKit.PhilipsHue.Api;
 using System.Collections.Immutable;
 
 namespace NDiscoKit.Services;
-internal class DiscoLightService : IDisposable
+internal class DiscoLightService : IAsyncDisposable
 {
     private readonly ILogger<DiscoLightService> logger;
+    private readonly ILogger<LocalHueApi> hueLogger;
+
     private readonly SettingsService settings;
 
-    private Task<ImmutableArray<LightHandler>>? handlers;
+    private bool handlersUpToDate = false;
+    private readonly SemaphoreSlim handlersLock = new(1, 1);
+    private ImmutableArray<LightHandler> handlers = ImmutableArray<LightHandler>.Empty;
 
     public event Action? OnHandlersChanged;
 
-    public DiscoLightService(ILogger<DiscoLightService> logger, SettingsService settings)
+    public DiscoLightService(ILogger<DiscoLightService> logger, ILogger<LocalHueApi> hueLogger, SettingsService settings)
     {
         this.logger = logger;
+        this.hueLogger = hueLogger;
+
         this.settings = settings;
 
         settings.OnSettingsChanged += SettingsUpdated;
@@ -25,14 +31,27 @@ internal class DiscoLightService : IDisposable
 
     private void SettingsUpdated(Settings s)
     {
-        handlers = null;
+        Interlocked.Exchange(ref handlersUpToDate, false);
         OnHandlersChanged?.Invoke();
     }
 
-    public Task<ImmutableArray<LightHandler>> GetHandlersAsync()
+    public async ValueTask<ImmutableArray<LightHandler>> GetHandlersAsync()
     {
-        handlers ??= LoadHandlers();
-        return handlers;
+        await handlersLock.WaitAsync();
+        try
+        {
+            bool upToDate = Interlocked.Exchange(ref handlersUpToDate, true);
+            if (!upToDate)
+            {
+                await DisposeHandlers(acquireLock: false);
+                handlers = await LoadHandlers();
+            }
+            return handlers;
+        }
+        finally
+        {
+            handlersLock.Release();
+        }
     }
 
     private async Task<ImmutableArray<LightHandler>> LoadHandlers()
@@ -49,7 +68,7 @@ internal class DiscoLightService : IDisposable
             try
             {
                 if (bridge.EntertainmentAreaId.HasValue)
-                    handler = await HueLightHandler.CreateAsync(new LocalHueApi(bridge.BridgeIp, bridge.Credentials), bridge.EntertainmentAreaId.Value, disposeHue: true);
+                    handler = await HueLightHandler.CreateAsync(new LocalHueApi(bridge.BridgeIp, bridge.Credentials, hueLogger), bridge.EntertainmentAreaId.Value, disposeHue: true);
             }
             catch (Exception ex)
             {
@@ -65,9 +84,26 @@ internal class DiscoLightService : IDisposable
         return handlers.ToImmutableArray();
     }
 
-    public void Dispose()
+    private async ValueTask DisposeHandlers(bool acquireLock)
+    {
+        if (acquireLock)
+            await handlersLock.WaitAsync();
+        try
+        {
+            foreach (LightHandler h in handlers)
+                await h.DisposeAsync();
+        }
+        finally
+        {
+            if (acquireLock)
+                handlersLock.Release();
+        }
+    }
+
+    public async ValueTask DisposeAsync()
     {
         settings.OnSettingsChanged -= SettingsUpdated;
+        await DisposeHandlers(acquireLock: true);
         GC.SuppressFinalize(this);
     }
 }

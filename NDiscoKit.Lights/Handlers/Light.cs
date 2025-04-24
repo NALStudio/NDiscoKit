@@ -12,21 +12,10 @@ public abstract class Light
 
     public NDKColor Color { get; set; } = NDKColor.WhitePoints.D65;
 
-    public abstract bool CanSignal { get; }
+    public abstract bool CanIdentify { get; }
 
     /// <summary>
-    /// Signal for <paramref name="duration"/> using <see cref="Color" />
+    /// Run an action to identify this light.
     /// </summary>
-    /// <returns>
-    /// <see langword="true"/> if the signal was successful, <see langword="false"/> otherwise.
-    /// </returns>
-    public ValueTask<bool> Signal(TimeSpan duration) => Signal(duration, Color);
-
-    /// <summary>
-    /// Signal for <paramref name="duration"/> using the given color.
-    /// </summary>
-    /// <returns>
-    /// <see langword="true"/> if the signal was successful, <see langword="false"/> otherwise.
-    /// </returns>
-    public abstract ValueTask<bool> Signal(TimeSpan duration, NDKColor color);
+    public abstract ValueTask<bool> IdentifyAsync();
 }

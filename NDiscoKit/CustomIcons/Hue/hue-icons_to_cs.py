@@ -49,11 +49,15 @@ class CSharpWriter:
         self._content: list[str] = []
 
     def _write_indentation(self):
-        self._content.append(self._indentation * self.indent)
+        if self.indent > 0:
+            self._content.append(self._indentation * self.indent)
+        elif self.indent < 0:
+            raise ValueError("Cannot have negative indent.")
 
     def writeline(self, line: str = ""):
-        self._write_indentation()
-        self._content.append(line)
+        if len(line) > 0:
+            self._write_indentation()
+            self._content.append(line)
         self._content.append('\n')
 
     def start_block(self):
@@ -63,12 +67,12 @@ class CSharpWriter:
 
     def end_block(self, suffix: str = ""):
         """Use `suffix` to add some text after the closing brace."""
+        self.indent -= 1
         self._write_indentation()
         self._content.append("}")
         if len(suffix) > 0:
             self._content.append(suffix)
         self._content.append("\n")
-        self.indent -= 1
 
     def __str__(self) -> str:
         return "".join(self._content)
@@ -96,7 +100,7 @@ def write_cs(json_obj: JsonObj) -> str:
 
     # Write lookup
     writer.writeline()
-    writer.writeline("public static string? GetByName(string name)")
+    writer.writeline("public static string? GetByName(ReadOnlySpan<char> name)")
     writer.start_block()
     writer.writeline("return name switch")
     writer.start_block()
@@ -104,6 +108,17 @@ def write_cs(json_obj: JsonObj) -> str:
         writer.writeline(f"\"{js_str_name}\" => {cs_var_name},")
     writer.writeline("_ => null")
     writer.end_block(";")
+    writer.end_block()
+
+    # Write lookup string overload
+    writer.writeline()
+    writer.writeline("public static string? GetByName(string? name)")
+    writer.start_block()
+    writer.writeline("if (string.IsNullOrEmpty(name))")
+    writer.indent += 1
+    writer.writeline("return null;")
+    writer.indent -= 1
+    writer.writeline("return GetByName(name.AsSpan());")
     writer.end_block()
 
     # write end

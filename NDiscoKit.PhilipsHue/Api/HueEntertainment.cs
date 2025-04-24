@@ -1,4 +1,5 @@
-﻿using NDiscoKit.PhilipsHue.Enums.Clip;
+﻿using Microsoft.Extensions.Logging;
+using NDiscoKit.PhilipsHue.Enums.Clip;
 using NDiscoKit.PhilipsHue.Helpers;
 using NDiscoKit.PhilipsHue.Models;
 using NDiscoKit.PhilipsHue.Models.Clip.Put;
@@ -11,8 +12,6 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Sockets;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Text;
 
 namespace NDiscoKit.PhilipsHue.Api;
@@ -52,9 +51,9 @@ public sealed class HueEntertainment : IDisposable
         return Encoding.ASCII.GetBytes(guidString);
     }
 
-    public static async Task<HueEntertainment?> ConnectAsync(string bridgeIp, HueCredentials credentials, Guid entertainmentConfigurationId)
+    public static async Task<HueEntertainment?> ConnectAsync(string bridgeIp, HueCredentials credentials, Guid entertainmentConfigurationId, ILogger<LocalHueApi>? hueLogger = null)
     {
-        using LocalHueApi hue = new(bridgeIp, credentials);
+        using LocalHueApi hue = new(bridgeIp, credentials, hueLogger);
         return await ConnectAsync(hue, entertainmentConfigurationId);
     }
 
@@ -63,7 +62,7 @@ public sealed class HueEntertainment : IDisposable
         HueEntertainment entertainment = new(entertainmentConfigurationId);
         try
         {
-            await hue.UpdateEntertainmentConfigurationAsync(entertainmentConfigurationId, new HueEntertainmentConfigurationPut() { Action = HueAction.Start });
+            await hue.UpdateEntertainmentConfigurationAsync(entertainmentConfigurationId, new HueEntertainmentConfigurationPut() { Action = HueStateAction.Start });
             await entertainment.ConnectDtls(hue);
         }
         catch

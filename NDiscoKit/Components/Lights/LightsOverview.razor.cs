@@ -4,45 +4,110 @@ using NDiscoKit.CustomIcons;
 using NDiscoKit.Lights.Handlers;
 using NDiscoKit.Lights.Handlers.Hue;
 using NDiscoKit.Services;
+using System.Buffers;
 using System.Collections.Immutable;
 
 namespace NDiscoKit.Components.Lights;
-public partial class LightsOverview
+public partial class LightsOverview : IDisposable
 {
+    [Inject]
+    private ISnackbar Snackbar { get; init; } = default!;
+
     [Inject]
     private DiscoLightService LightService { get; init; } = default!;
 
     private record TreeData(string Name, string? Id = null, LightHandler? Handler = null, Light? Light = null);
 
-    private MudTreeView<TreeData>? mudTree;
+    private bool lightHandlersLoading;
+    private ImmutableArray<LightHandler>? lightHandlers;
 
-    private static ImmutableArray<TreeItemData<TreeData>> GetInitialData()
+    protected override void OnInitialized()
     {
-        return [
-            new()
-            {
-                Icon = Icons.Material.Rounded.Lightbulb,
-                Expandable = true,
-                Value = new TreeData("Lights", Id: "lights")
-            }
-        ];
+        LightService.OnHandlersChanged += LightsChanged;
     }
 
-    private async Task<IReadOnlyCollection<TreeItemData<TreeData>>> LoadData(TreeData item)
+    public void Dispose()
     {
-        return item.Id switch
+        LightService.OnHandlersChanged -= LightsChanged;
+        GC.SuppressFinalize(this);
+    }
+
+    private void LightsChanged()
+    {
+        lightHandlers = null;
+        StateHasChanged();
+    }
+
+    private async Task LoadLightsAsync()
+    {
+        lightHandlersLoading = true;
+
+        await Task.Delay(500);
+        lightHandlers = await LightService.GetHandlersAsync();
+
+        lightHandlersLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task SignalLightAsync(Light light)
+    {
+        bool success;
+        if (light.CanIdentify)
         {
-            "lights" => await LoadLights(),
-            _ => ImmutableArray<TreeItemData<TreeData>>.Empty
-        };
+            try
+            {
+                success = await light.IdentifyAsync();
+            }
+            catch
+            {
+                success = false;
+            }
+        }
+        else
+        {
+            success = false;
+        }
+
+        if (!success)
+            Snackbar.Add("Failed to signal light.", Severity.Error);
     }
 
     private static string? GetLightIcon(Light light)
     {
         if (light is HueLight hl && hl.LightArchetype is not null)
-            return HueIcons.GetByName(hl.LightArchetype);
-        else
-            return null;
+        {
+            // Hue icons use 'bulb-spot' style and archetype uses 'spot_bulb' style.
+            // So we have to invert the string and replace dashes with underscores
+
+            ReadOnlySpan<char> archetype = hl.LightArchetype.AsSpan();
+            int length = archetype.Length;
+
+            char[]? rented = null;
+            Span<char> key = length < 128 ? stackalloc char[length] : (rented = ArrayPool<char>.Shared.Rent(length)).AsSpan(length);
+            try
+            {
+                foreach (Range range in archetype.Split('_'))
+                {
+                    (int off, int len) = range.GetOffsetAndLength(length);
+                    int endIndex = length - off;
+                    archetype.Slice(off, len).CopyTo(key[(endIndex - len)..]);
+                    if (endIndex < length)
+                        key[endIndex] = '-';
+                }
+
+                return HueIcons.GetByName(key);
+            }
+            finally
+            {
+                if (rented is not null)
+                {
+                    key.Clear();
+                    ArrayPool<char>.Shared.Return(rented, clearArray: false);
+                }
+            }
+        }
+
+        return null;
     }
 
     private static string? GetHandlerIcon(LightHandler handler)
@@ -52,40 +117,5 @@ public partial class LightsOverview
             HueLightHandler => HueIcons.BridgeV2,
             _ => null
         };
-    }
-
-    private async Task<IReadOnlyCollection<TreeItemData<TreeData>>> LoadLights()
-    {
-        List<TreeItemData<TreeData>> handlers = new();
-
-        foreach (LightHandler handler in await LightService.GetHandlersAsync())
-        {
-            TreeItemData<TreeData> handlerItem = new()
-            {
-                Expandable = true,
-                Value = new(handler.DisplayName, Handler: handler),
-                Icon = GetHandlerIcon(handler),
-                Children = new()
-            };
-
-            foreach (Light light in handler.Lights)
-            {
-                handlerItem.Children.Add(new TreeItemData<TreeData>()
-                {
-                    Expandable = false,
-                    Value = new(light.DisplayName ?? "Unknown Light", Light: light),
-                    Icon = GetLightIcon(light)
-                });
-            }
-
-            handlers.Add(handlerItem);
-        }
-
-        return handlers;
-    }
-
-    private static void OnItemsLoaded(TreeItemData<TreeData> treeItemData, IReadOnlyCollection<TreeItemData<TreeData>> children)
-    {
-        treeItemData.Children = children?.ToList();
     }
 }

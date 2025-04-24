@@ -1,4 +1,5 @@
-﻿using NDiscoKit.PhilipsHue.Helpers;
+﻿using Microsoft.Extensions.Logging;
+using NDiscoKit.PhilipsHue.Helpers;
 using NDiscoKit.PhilipsHue.Models;
 using NDiscoKit.PhilipsHue.Models.Clip.Generic;
 using NDiscoKit.PhilipsHue.Models.Clip.Internal;
@@ -11,17 +12,22 @@ using System.Net.Mime;
 namespace NDiscoKit.PhilipsHue.Api;
 public class LocalHueApi : HueApi
 {
+    private const LogLevel level = LogLevel.Information;
+
     // Exposed for the entertainment API
     public string BridgeIp { get; }
     public HueCredentials Credentials { get; }
 
+    private readonly ILogger<LocalHueApi>? logger;
     private readonly HueHttpClient http;
 
-    public LocalHueApi(string bridgeIp, HueCredentials credentials)
+    public LocalHueApi(string bridgeIp, HueCredentials credentials, ILogger<LocalHueApi>? logger = null)
     {
         BridgeIp = bridgeIp;
         http = new HueHttpClient(HueEndpoints.BaseAddress(bridgeIp));
         http.DefaultRequestHeaders.Add("hue-application-key", credentials.AppKey);
+
+        this.logger = logger;
     }
 
     public override void Dispose()
@@ -44,12 +50,23 @@ public class LocalHueApi : HueApi
     private async Task<ImmutableArray<T>> InternalGetAsync<T>(string fullEndpoint, CancellationToken cancellationToken)
     {
         HttpResponseMessage resp = await http.GetAsync(fullEndpoint, cancellationToken);
+
+        logger?.Log(level, "Request sent:\n{}", resp.RequestMessage);
+
         return await HandleResponse<T>(resp, cancellationToken);
     }
 
     protected override async Task PutAsync<T>(string endpoint, Guid id, T value, CancellationToken cancellationToken)
     {
         HttpResponseMessage resp = await http.PutAsJsonAsync(HueEndpoints.Clip.GetEndpoint(endpoint, id), value, JsonOptions, cancellationToken);
+
+        if (logger?.IsEnabled(level) == true)
+        {
+            HttpContent? content = resp.RequestMessage?.Content;
+            string? contentText = content is not null ? await content.ReadAsStringAsync(cancellationToken) : null;
+            logger.LogInformation("Request sent:\n{}\nWith content:\n{}", resp.RequestMessage, contentText);
+        }
+
         ImmutableArray<HueResourceIdentifier> result = await HandleResponse<HueResourceIdentifier>(resp, cancellationToken);
         Debug.Assert(result.Length == 1 && result[0].ResourceId == id);
     }

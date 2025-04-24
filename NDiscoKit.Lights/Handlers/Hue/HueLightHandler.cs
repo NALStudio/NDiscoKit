@@ -81,7 +81,11 @@ public class HueLightHandler : LightHandler
             }
         }
 
-        return new HueLight(hue, channel.ChannelId, light?.Id, light?.ProductData?.Archetype) // ProductData is almost always null :(
+#pragma warning disable CS0618 // Type or member is obsolete
+        string? archetype = light?.Metadata?.Archetype;
+#pragma warning restore CS0618 // Type or member is obsolete
+
+        return new HueLight(hue, channel.ChannelId, light?.Id, archetype)
         {
             DisplayName = light?.Metadata.Name,
             Position = new LightPosition(channel.Position.X, channel.Position.Y, channel.Position.Z),

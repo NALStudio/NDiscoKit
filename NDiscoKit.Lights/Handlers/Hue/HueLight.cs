@@ -1,5 +1,5 @@
-﻿using NDiscoKit.Lights.Models.Color;
-using NDiscoKit.PhilipsHue.Api;
+﻿using NDiscoKit.PhilipsHue.Api;
+using NDiscoKit.PhilipsHue.Models.Clip.Put;
 
 namespace NDiscoKit.Lights.Handlers.Hue;
 public class HueLight : Light
@@ -19,13 +19,13 @@ public class HueLight : Light
         LightArchetype = lightArchetype;
     }
 
-    public override bool CanSignal => LightId.HasValue;
-
-    public override ValueTask<bool> Signal(TimeSpan duration, NDKColor color)
+    public override bool CanIdentify => LightId.HasValue;
+    public override async ValueTask<bool> IdentifyAsync()
     {
-        // if (!LightId.HasValue)
-        //     return false;
+        if (!LightId.HasValue)
+            return false;
 
-        throw new NotImplementedException();
+        await hue.UpdateLightAsync(LightId.Value, new HueLightPut() { Identify = true });
+        return true;
     }
 }
