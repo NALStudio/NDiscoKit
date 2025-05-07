@@ -1,0 +1,41 @@
+﻿<CascadingValue Value="this">
+    @{
+        bool showLabel = !string.IsNullOrEmpty(Label);
+        bool showAuto = Auto.HasValue;
+
+        if (showLabel || showAuto)
+        {
+            <MudStack Row Class="mb-n3" AlignItems="AlignItems.End">
+                @if (showLabel)
+                {
+                    <MudText Typo="Typo.h6">@Label</MudText>
+                }
+                @if (showAuto)
+                {
+                    <MudCheckBox Dense Size="Size.Small" Color="Color.Primary" Label="auto" Value="@(Auto!.Value)" ValueChanged="@AutoChanged" Disabled="@Disabled" />
+                }
+            </MudStack>    
+        }
+    }
+
+    <MudPaper Outlined Class="pa-4">
+        @ChildContent
+    </MudPaper>
+</CascadingValue>
+
+@code {
+    [Parameter]
+    public string? Label { get; set; }
+
+    [Parameter]
+    public bool? Auto { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> AutoChanged { get; set; }
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

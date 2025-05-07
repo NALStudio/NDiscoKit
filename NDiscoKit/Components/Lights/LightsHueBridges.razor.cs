@@ -125,7 +125,7 @@ public partial class LightsHueBridges : IDisposable
 
     private async Task ChangeEntertainmentArea(HueBridgeSettings settings, Guid? entId)
     {
-        await Settings.UpdateSettings(
+        await Settings.UpdateSettingsAsync(
             s => s with
             {
                 HueBridges = s.HueBridges.Replace(settings, settings with
@@ -142,7 +142,7 @@ public partial class LightsHueBridges : IDisposable
         DialogResult? res = await dialog.Result;
         if (res?.Data is HueBridgeSettings bs)
         {
-            await Settings.UpdateSettings(s =>
+            await Settings.UpdateSettingsAsync(s =>
             {
                 HueBridgeSettings? oldValue = s.HueBridges.FirstOrDefault(b => b.BridgeIp == bs.BridgeIp);
                 if (oldValue is not null)
@@ -160,6 +160,6 @@ public partial class LightsHueBridges : IDisposable
 
     private async Task RemoveBridge(MudTabPanel panel)
     {
-        await Settings.UpdateSettings(s => s with { HueBridges = s.HueBridges.Remove(((BridgeData)panel.ID!).Settings) });
+        await Settings.UpdateSettingsAsync(s => s with { HueBridges = s.HueBridges.Remove(((BridgeData)panel.ID!).Settings) });
     }
 }

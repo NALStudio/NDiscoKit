@@ -22,6 +22,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NDiscoKit.PhilipsHue", "NDi
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NDiscoKit.Lights", "NDiscoKit.Lights\NDiscoKit.Lights.csproj", "{C49C6551-F820-438E-970C-D3E1F339DC70}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NDiscoKit.AudioAnalysis", "NDiscoKit.AudioAnalysis\NDiscoKit.AudioAnalysis.csproj", "{08BF86A8-D67D-4E94-BAB7-EB4189C51525}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -56,6 +58,10 @@ Global
 		{C49C6551-F820-438E-970C-D3E1F339DC70}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C49C6551-F820-438E-970C-D3E1F339DC70}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C49C6551-F820-438E-970C-D3E1F339DC70}.Release|Any CPU.Build.0 = Release|Any CPU
+		{08BF86A8-D67D-4E94-BAB7-EB4189C51525}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{08BF86A8-D67D-4E94-BAB7-EB4189C51525}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{08BF86A8-D67D-4E94-BAB7-EB4189C51525}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{08BF86A8-D67D-4E94-BAB7-EB4189C51525}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

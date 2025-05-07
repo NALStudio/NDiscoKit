@@ -4,6 +4,9 @@ using MudBlazor;
 namespace NDiscoKit.Components.Disco;
 public partial class DiscoButton
 {
+    [CascadingParameter]
+    private DiscoButtonContainer? ParentContainer { get; init; }
+
     [Parameter]
     public string? Name { get; set; }
 
@@ -27,6 +30,9 @@ public partial class DiscoButton
 
     [Parameter]
     public EventCallback<bool> StateChanged { get; set; }
+
+    [Parameter]
+    public bool Disabled { get; set; }
 
     private async Task OnPointerDown()
     {

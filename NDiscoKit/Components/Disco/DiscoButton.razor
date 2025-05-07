@@ -8,5 +8,6 @@
                    Ripple="false"
                    Size="Size.Large"
                    Color="@Color"
-                   Variant="@(State ? Variant.Filled : Variant.Outlined)" />
+                   Variant="@(State ? Variant.Filled : Variant.Outlined)"
+                   Disabled="@(Disabled || ParentContainer?.Disabled == true)" />
 </MudTooltip>

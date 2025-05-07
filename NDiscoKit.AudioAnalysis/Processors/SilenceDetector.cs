@@ -1,7 +1,7 @@
 ﻿using NAudio.Wave;
 using System.Runtime.InteropServices;
 
-namespace NDiscoKit.Testing;
+namespace NDiscoKit.AudioAnalysis.Processors;
 internal class SilenceDetector
 {
     private readonly short[] _buffer;
@@ -42,7 +42,7 @@ internal class SilenceDetector
         buffer[data.Length..].CopyTo(buffer);
         data.CopyTo(buffer[^data.Length..]);
 
-        if ((_bufferSize + data.Length) < _buffer.Length)
+        if (_bufferSize + data.Length < _buffer.Length)
             _bufferSize += data.Length;
         else
             _bufferSize = _buffer.Length;

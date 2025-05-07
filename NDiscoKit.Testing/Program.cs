@@ -1,6 +1,5 @@
-﻿using CSnakes.Runtime;
-using NDiscoKit.Audio;
-using NDiscoKit.Audio.AudioSources;
+﻿using NDiscoKit.Audio.AudioSources;
+using NDiscoKit.AudioAnalysis.Models;
 using NDiscoKit.Python;
 
 namespace NDiscoKit.Testing;
@@ -10,13 +9,12 @@ internal static class Program
     private static async Task Main()
     {
         Console.WriteLine("Initializing Python...");
-        IPythonEnvironment python = await NDKPython.InitializeAsync(pipInstall: false);
-
-        CancellationTokenSource cancelRecord = new();
+        NDKPython python = await NDKPython.InitializeAsync(dependenciesVersion: NDKPython.DependenciesVersion); // ignore pip install
 
         Console.WriteLine("Starting capture...");
-        Task captureTask = StartCapture(python, cancelRecord.Token);
+        AudioAnalyzer analyzer = await AudioAnalyzer.StartCaptureAsync(python.Python, AudioSourceProcess.Spotify, onDataAvailable: PrintOutput);
 
+        Task<Exception?> captureTask = analyzer.WaitForExit();
         Task<ConsoleKey> keyTask;
         while (true)
         {
@@ -28,51 +26,21 @@ internal static class Program
 
             if (keyTask.IsCompleted && keyTask.Result == ConsoleKey.Enter)
             {
-                cancelRecord.Cancel();
+                await analyzer.DisposeAsync();
                 break;
             }
         }
 
-        await captureTask;
+        Exception? error = await captureTask;
+        if (error is not null)
+            throw error;
     }
 
-    private static async Task StartCapture(IPythonEnvironment python, CancellationToken cancelRecord)
+    private static void PrintOutput(AudioProcessorResult result)
     {
-        await using AppAudioRecorder recorder = await AppAudioRecorder.StartRecordAsync(AudioSourceProcess.Spotify);
-
-        using AudioProcessor processor = AudioProcessor.Create(fps: 100, inputFormat: AppAudioRecorder.RecordFormat, beatTracking: python.BeatTracking());
-        SilenceDetector silence = new(TimeSpan.FromSeconds(5), AppAudioRecorder.RecordFormat);
-
-        AudioProcessorResult result = new();
-        recorder.DataAvailable += (_, dataMemory) =>
-        {
-            ReadOnlySpan<byte> data = dataMemory.Span;
-
-            silence.Update(data);
-
-            bool reset = silence.IsSilence;
-            processor.Process(data, in result, reset: reset);
-            if (reset)
-            {
-                silence.Reset();
-                Console.WriteLine("Reset.");
-            }
-
-            Console.WriteLine($"{result.T1?.Value.BPM:0.00} {result.T2?.Value.BPM:0.00}");
-        };
-        Console.WriteLine("Capture started.");
-
-        try
-        {
-            await recorder.WaitForRecordEnd().WaitAsync(cancelRecord);
-        }
-        catch (TaskCanceledException)
-        {
-            Console.WriteLine("Stopping capture...");
-            await recorder.StopRecordAsync();
-        }
-
-        Console.WriteLine("Capture stopped.");
+        if (result.WasReset)
+            Console.WriteLine("RESET");
+        Console.WriteLine($"{result.T1?.Value.BPM:0.00} {result.T2?.Value.BPM:0.00}");
     }
 
     /* Didn't work....

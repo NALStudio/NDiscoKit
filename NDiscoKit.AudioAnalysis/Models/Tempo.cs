@@ -1,5 +1,5 @@
-﻿namespace NDiscoKit.Testing;
-internal readonly struct Tempo : IEquatable<Tempo>, IComparable<Tempo>
+﻿namespace NDiscoKit.AudioAnalysis.Models;
+public readonly struct Tempo : IEquatable<Tempo>, IComparable<Tempo>
 {
     public Tempo(double bpm)
     {

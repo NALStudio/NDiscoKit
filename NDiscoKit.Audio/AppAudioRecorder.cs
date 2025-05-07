@@ -1,7 +1,6 @@
 ﻿using DiscoKit.Audio.Internals;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
-using NDiscoKit.Audio.AudioSources;
 using System.Diagnostics;
 
 namespace NDiscoKit.Audio;
@@ -17,6 +16,8 @@ public sealed class AppAudioRecorder : IAsyncDisposable
     public event EventHandler<ReadOnlyMemory<byte>>? DataAvailable;
     public event EventHandler<Exception?>? RecordingStopped;
 
+    public bool IsRecording => !captureEnded.Task.IsCompleted;
+
     private ProcessWasapiCapture? capture;
     private readonly TaskCompletionSource captureEnded;
     private AppAudioRecorder(ProcessWasapiCapture capture)
@@ -31,11 +32,9 @@ public sealed class AppAudioRecorder : IAsyncDisposable
     /// <summary>
     /// This task is very slow to complete (over a second)
     /// </summary>
-    public static async Task<AppAudioRecorder> StartRecordAsync(Process process, bool includeProcessTree = false)
+    public static async Task<AppAudioRecorder> StartRecordAsync(int processId, bool includeProcessTree = false)
     {
-        ArgumentNullException.ThrowIfNull(process);
-
-        ProcessWasapiCapture capture = await ProcessWasapiCapture.CreateForProcessCaptureAsync(process.Id, includeProcessTree);
+        ProcessWasapiCapture capture = await ProcessWasapiCapture.CreateForProcessCaptureAsync(processId, includeProcessTree);
         AppAudioRecorder recorder = new(capture); // Create recorder before capture start so that we can subscribe to the events on time
 
         await Task.Delay(500); // Wait 500 ms to let the process capture initialize (otherwise the app crashes...)
@@ -43,13 +42,6 @@ public sealed class AppAudioRecorder : IAsyncDisposable
         await Task.Delay(500); // Wait 500 ms before returning the object to block quick start/stops of the recorder (as this will deadlock the app for some reason)
 
         return recorder;
-    }
-
-    public static async Task<AppAudioRecorder> StartRecordAsync(AudioSourceProcess audioProcess)
-    {
-        Process process = await audioProcess.TryFindProcess() ?? throw new ArgumentException("No process found.", nameof(audioProcess));
-
-        return await StartRecordAsync(process, audioProcess.CaptureEntireProcessTree);
     }
 
     private void OnDataAvailable(object? sender, WaveInEventArgs args)

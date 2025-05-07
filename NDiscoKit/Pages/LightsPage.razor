@@ -8,7 +8,10 @@
     <CustomExpansionPanel Title="Overview" BoldTitle Icon="@(Icons.Material.Rounded.Dashboard)" Expanded="true">
         <LightsOverview />
     </CustomExpansionPanel>
-    <CustomExpansionPanel Title="Philips Hue" Icon="@(HueIcons.Logo)">
-        <LightsHueBridges />
+    <CustomExpansionPanel Title="Philips Hue" Icon="@(HueIcons.Logo)" ExpandedChanged="PhilipsMenuOpenedChanged">
+        @if (philipsComponentCreate)
+        {
+            <LightsHueBridges />
+        }
     </CustomExpansionPanel>
 </MudExpansionPanels>

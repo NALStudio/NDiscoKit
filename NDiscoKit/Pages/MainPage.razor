@@ -1,4 +1,16 @@
 ﻿@page "/"
 @using NDiscoKit.Components.Disco
 
-<DiscoButton Toggle Icon="@(Icons.Material.Rounded.Settings)" />
+<MudStack Class="mt-8">
+    <DiscoButtonContainer Label="Colors" Disabled="@discoDisabled">
+        <DiscoButton Toggle Icon="@(Icons.Material.Rounded.Settings)" />
+    </DiscoButtonContainer>
+
+    <DiscoButtonContainer Label="Effects" Auto="@(settings?.AutoEffectEnabled == true)" AutoChanged="SetEffectAuto" Disabled="@discoDisabled">
+        
+    </DiscoButtonContainer>
+
+    <DiscoButtonContainer Label="Flashes" Auto="@(settings?.AutoFlashEnabled == true)" AutoChanged="SetFlashAuto" Disabled="@discoDisabled">
+
+    </DiscoButtonContainer>
+</MudStack>

@@ -1,5 +1,6 @@
-﻿namespace NDiscoKit.Testing;
-internal class AudioProcessorResult
+﻿namespace NDiscoKit.AudioAnalysis.Models;
+
+public class AudioProcessorResult
 {
     public Prediction<Tempo>? T1 { get; private set; }
     public Prediction<Tempo>? T2 { get; private set; }
@@ -13,7 +14,7 @@ internal class AudioProcessorResult
         WasReset = false;
     }
 
-    public void AfterHop(Prediction<Tempo>? t1, Prediction<Tempo>? t2, ReadOnlySpan<double> beats, bool reset = false)
+    public void AfterHop(Prediction<Tempo>? t1, Prediction<Tempo>? t2, ReadOnlySpan<double> beats, bool reset)
     {
         T1 = t1;
         T2 = t2;

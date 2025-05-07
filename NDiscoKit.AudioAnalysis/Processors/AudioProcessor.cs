@@ -2,11 +2,12 @@
 using CSnakes.Runtime;
 using CSnakes.Runtime.Python;
 using NAudio.Wave;
+using NDiscoKit.AudioAnalysis.Models;
 using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-namespace NDiscoKit.Testing;
+namespace NDiscoKit.AudioAnalysis.Processors;
 
 /// <summary>
 /// Not thread-safe.
@@ -96,7 +97,7 @@ internal sealed class AudioProcessor : IDisposable
         for (int i = 0; i < mono32.Length; i++)
         {
             short left = stereo16[i * 2];
-            short right = stereo16[(i * 2) + 1];
+            short right = stereo16[i * 2 + 1];
 
             // Take the average of the two channels and convert it to float
             // Equals to: ((left + right) / 2) / short.MaxValue
@@ -142,7 +143,7 @@ internal sealed class AudioProcessor : IDisposable
             }
         }
 
-        currentTime = ((hopIndex * HopSize) + hopOffset) / OutputFormat.SampleRate;
+        currentTime = (hopIndex * HopSize + hopOffset) / OutputFormat.SampleRate;
     }
 
     private static void WriteBuffer(scoped ref Span<float> buffer, scoped ReadOnlySpan<float> data)
@@ -175,7 +176,8 @@ internal sealed class AudioProcessor : IDisposable
         apResult?.AfterHop(
             t1: T1,
             t2: T2,
-            beats: beats.AsReadOnlySpan<double>()
+            beats: beats.AsReadOnlySpan<double>(),
+            reset: reset
         );
     }
 
@@ -196,7 +198,7 @@ internal sealed class AudioProcessor : IDisposable
         int hopSize = sampleRate / fps;
 
         // Check if value was rounded down during division
-        if ((hopSize * fps) != sampleRate)
+        if (hopSize * fps != sampleRate)
             throw new ArgumentException("FPS does not round to a specific integer hop size.");
 
         return hopSize;

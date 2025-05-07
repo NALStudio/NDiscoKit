@@ -59,7 +59,11 @@ public class SettingsService
         }
     }
 
-    public async Task UpdateSettings(Func<Settings, Settings> updateFunc)
+    /// <summary>
+    /// Updates the current settings with <paramref name="updateFunc"/>.
+    /// </summary>
+    /// <returns>The updated settings.</returns>
+    public async Task<Settings> UpdateSettingsAsync(Func<Settings, Settings> updateFunc)
     {
         await _settingsLock.WaitAsync();
 
@@ -80,5 +84,6 @@ public class SettingsService
 
 
         OnSettingsChanged?.Invoke(updated);
+        return updated;
     }
 }

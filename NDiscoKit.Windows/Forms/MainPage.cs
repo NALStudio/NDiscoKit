@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Components.WebView.WindowsForms;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Web.WebView2.Core;
-using MudBlazor.Services;
 using NDiscoKit.Services;
 using NDiscoKit.Windows.Services;
 
@@ -53,11 +52,10 @@ public partial class MainPage : Form
 
         services.AddWindowsFormsBlazorWebView();
         services.AddScoped(_ => Program.HttpClient);
-        services.AddMudServices();
 
         services.AddNDiscoKitServices(
-            appDataService: new WindowsAppDataService()
-        );
+            appDataServiceFactory: static _ => new WindowsAppDataService(),
+            audioRecordingServiceFactory: static services => new WindowsAudioRecordingService(services.GetRequiredService<ILogger<WindowsAudioRecordingService>>()));
 
 #if DEBUG
         services.AddBlazorWebViewDeveloperTools();
