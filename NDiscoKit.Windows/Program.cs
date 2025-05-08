@@ -1,4 +1,8 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using NDiscoKit.Services;
 using NDiscoKit.Windows.Forms;
+using NDiscoKit.Windows.Services;
 using System.Net.Http.Headers;
 
 namespace NDiscoKit.Windows;
@@ -13,10 +17,20 @@ internal static class Program
     [STAThread]
     private static void Main()
     {
-        // To customize application configuration such as set high DPI settings or default font,
-        // see https://aka.ms/applicationconfiguration.
-        ApplicationConfiguration.Initialize();
-        Application.Run(new MainPage());
+        ServiceProvider services = BuildServices();
+
+        try
+        {
+            // To customize application configuration such as set high DPI settings or default font,
+            // see https://aka.ms/applicationconfiguration.
+            ApplicationConfiguration.Initialize();
+            Application.Run(new MainPage(services));
+        }
+        finally
+        {
+            // Dispose synchronously as I can't make the main function as async Task under STAThread
+            services.DisposeAsync().Preserve().GetAwaiter().GetResult();
+        }
     }
 
     private static HttpClient CreateHttp()
@@ -29,5 +43,29 @@ internal static class Program
         );
 
         return http;
+    }
+
+    private static ServiceProvider BuildServices()
+    {
+        ServiceCollection services = new();
+        services.AddLogging(builder =>
+        {
+#if DEBUG
+            builder.AddDebug();
+#endif
+        });
+
+        services.AddWindowsFormsBlazorWebView();
+        services.AddSingleton(HttpClient);
+
+        services.AddNDiscoKitServices(
+            appDataServiceFactory: static _ => new WindowsAppDataService(),
+            audioRecordingServiceFactory: static services => new WindowsAudioRecordingService(services.GetRequiredService<ILogger<WindowsAudioRecordingService>>()));
+
+#if DEBUG
+        services.AddBlazorWebViewDeveloperTools();
+#endif
+
+        return services.BuildServiceProvider();
     }
 }

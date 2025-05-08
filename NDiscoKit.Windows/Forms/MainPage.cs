@@ -1,21 +1,17 @@
 using Microsoft.AspNetCore.Components.WebView;
 using Microsoft.AspNetCore.Components.WebView.WindowsForms;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.Web.WebView2.Core;
-using NDiscoKit.Services;
-using NDiscoKit.Windows.Services;
 
 namespace NDiscoKit.Windows.Forms;
 
 public partial class MainPage : Form
 {
-    public MainPage()
+    public MainPage(IServiceProvider services)
     {
         InitializeComponent();
 
         blazorWebView.HostPage = "wwwroot\\index.html";
-        blazorWebView.Services = BuildServices();
+        blazorWebView.Services = services;
         blazorWebView.RootComponents.Add<WinApp>("#app");
 
         blazorWebView.BlazorWebViewInitializing += WebViewInitializationStarted;
@@ -38,29 +34,5 @@ public partial class MainPage : Form
     private void UpdateWindowTitle()
     {
         Text = blazorWebView.WebView.CoreWebView2.DocumentTitle;
-    }
-
-    private static ServiceProvider BuildServices()
-    {
-        ServiceCollection services = new();
-        services.AddLogging(builder =>
-        {
-#if DEBUG
-            builder.AddDebug();
-#endif
-        });
-
-        services.AddWindowsFormsBlazorWebView();
-        services.AddScoped(_ => Program.HttpClient);
-
-        services.AddNDiscoKitServices(
-            appDataServiceFactory: static _ => new WindowsAppDataService(),
-            audioRecordingServiceFactory: static services => new WindowsAudioRecordingService(services.GetRequiredService<ILogger<WindowsAudioRecordingService>>()));
-
-#if DEBUG
-        services.AddBlazorWebViewDeveloperTools();
-#endif
-
-        return services.BuildServiceProvider();
     }
 }
