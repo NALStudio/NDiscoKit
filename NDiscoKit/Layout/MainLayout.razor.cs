@@ -122,11 +122,11 @@ public partial class MainLayout : IDisposable
             audioSourceFoundCache.Clear();
     }
 
-    private static string? GetAudioSourceIcon(AudioSource? source)
+    private static string? GetAudioSourceIcon(AudioSource? source, bool inheritColor = false)
     {
         return source switch
         {
-            AudioSource.Spotify => BrandIcons.Spotify,
+            AudioSource.Spotify => inheritColor ? BrandIcons.Spotify : BrandIcons.SpotifyGreen,
             AudioSource.WindowsMediaPlayer => BrandIcons.WindowsMediaPlayer,
             null => Icons.Material.Rounded.MicOff,
             _ => null

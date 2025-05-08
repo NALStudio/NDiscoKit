@@ -19,7 +19,7 @@
                     @if (!startingRecord)
                     {
                         AudioSource? source = AudioService.Source;
-                        <MudChip T="object" Icon="@(GetAudioSourceIcon(source))" Color="@(GetAudioSourceColor(source))">
+                        <MudChip T="object" Icon="@(GetAudioSourceIcon(source, inheritColor: true))" Color="@(GetAudioSourceColor(source))">
                             @(GetAudioSourceLabel(source))
                         </MudChip>
                     }

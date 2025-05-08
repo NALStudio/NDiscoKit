@@ -36,7 +36,7 @@ partial class MainPage
         blazorWebView.Dock = DockStyle.Fill;
         blazorWebView.Location = new Point(0, 0);
         blazorWebView.Name = "blazorWebView";
-        blazorWebView.Size = new Size(800, 450);
+        blazorWebView.Size = new Size(1264, 745);
         blazorWebView.TabIndex = 0;
         blazorWebView.Text = "blazorWebView1";
         // 
@@ -44,6 +44,7 @@ partial class MainPage
         // 
         AutoScaleDimensions = new SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.Font;
+        BackColor = Color.White;
         ClientSize = new Size(1264, 745);
         Controls.Add(blazorWebView);
         MinimumSize = new Size(480, 270);

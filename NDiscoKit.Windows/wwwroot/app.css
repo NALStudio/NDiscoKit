@@ -1,4 +1,17 @@
-﻿#blazor-error-ui {
+﻿#custom-loading-ui {
+    margin-top: calc(50% - 1.5rem);
+}
+
+    #custom-loading-ui .loading-text {
+        font-family: Roboto, Helvetica, Arial, sans-serif;
+        font-size: 3rem;
+        font-weight: 400;
+
+        text-align: center;
+        opacity: 0.25;
+    }
+
+#blazor-error-ui {
     background: lightyellow;
     bottom: 0;
     box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
