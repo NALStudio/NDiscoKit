@@ -14,7 +14,28 @@ public class WindowsMediaPlayerAudioSourceProcess : AudioSourceProcess
         try
         {
             if (mediaPlayers.Length == 1)
-                process = mediaPlayers[0];
+            {
+                Process p = mediaPlayers[0];
+
+                bool suspended = false;
+                if (p.Threads.Count > 0)
+                {
+                    ProcessThread t0 = p.Threads[0];
+                    if (t0.ThreadState == System.Diagnostics.ThreadState.Wait)
+                    {
+                        try
+                        {
+                            suspended = t0.WaitReason == ThreadWaitReason.Suspended;
+                        }
+                        catch (InvalidOperationException) // Thread stopped waiting before we checked the reason
+                        {
+                        }
+                    }
+                }
+
+                if (!suspended)
+                    process = p;
+            }
         }
         finally
         {
