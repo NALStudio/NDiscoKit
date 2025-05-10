@@ -97,7 +97,7 @@ internal sealed class AudioProcessor : IDisposable
         for (int i = 0; i < mono32.Length; i++)
         {
             short left = stereo16[i * 2];
-            short right = stereo16[i * 2 + 1];
+            short right = stereo16[(i * 2) + 1];
 
             // Take the average of the two channels and convert it to float
             // Equals to: ((left + right) / 2) / short.MaxValue
@@ -143,7 +143,7 @@ internal sealed class AudioProcessor : IDisposable
             }
         }
 
-        currentTime = (hopIndex * HopSize + hopOffset) / OutputFormat.SampleRate;
+        currentTime = ((hopIndex * HopSize) + hopOffset) / OutputFormat.SampleRate;
     }
 
     private static void WriteBuffer(scoped ref Span<float> buffer, scoped ReadOnlySpan<float> data)

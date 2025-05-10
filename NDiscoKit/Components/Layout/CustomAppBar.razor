@@ -1,0 +1,54 @@
+﻿@using NDiscoKit.Components.Branding
+@using NDiscoKit.Models
+
+<MudAppBar Dense Elevation="0">
+    <MudStack Style="flex:1" Row AlignItems="AlignItems.Center">
+        <MudIconButton Icon="@(Icons.Material.Rounded.Menu)" Color="Color.Inherit" Edge="Edge.Start" OnClick="ToggleDrawer" />
+        <NDiscoKitWordmark />
+    </MudStack>
+
+    <MudStack Row AlignItems="AlignItems.Center">
+        <MudMenu Disabled="@startingRecord" OpenChanged="AudioSourceMenuOpened">
+            <ActivatorContent>
+                @if (!startingRecord)
+                {
+                    AudioSource? source = AudioService.Source;
+                    <MudChip T="object" Icon="@(GetAudioSourceIcon(source, inheritColor: true))" Color="@(GetAudioSourceColor(source))">
+                        @(GetAudioSourceLabel(source))
+                    </MudChip>
+                }
+                else
+                {
+                    <MudChip T="object" Color="@(GetAudioSourceColor(startingRecordSource))">
+                        <MudStack Row AlignItems="AlignItems.Center" Spacing="2">
+                            <MudProgressCircular Indeterminate Size="Size.Small" Color="Color.Inherit" />
+                            Starting...
+                        </MudStack>
+                    </MudChip>
+                }
+            </ActivatorContent>
+            <ChildContent>
+                @{
+                    ReadOnlySpan<AudioSource?> tmp = [null, .. Enum.GetValues<AudioSource>()];
+                    foreach (AudioSource? source in tmp)
+                    {
+                        bool sourceNotFound = source.HasValue && !SourceFound(source.Value, cached: true);
+
+                        <MudMenuItem Disabled="@sourceNotFound" Icon="@(GetAudioSourceIcon(source))" IconColor="@(GetAudioSourceColor(source))" OnClick="@(async () => await SetAudioSource(source, updateSettings: true))">
+                            <MudStack Spacing="0">
+                                @(GetAudioSourceLabel(source))
+
+                                @if (sourceNotFound)
+                                {
+                                    <MudText Class="mt-n1" Typo="Typo.caption">Not Found</MudText>
+                                }
+                            </MudStack>
+                        </MudMenuItem>
+                    }
+                }
+            </ChildContent>
+        </MudMenu>
+        
+        <MudSwitch T="bool" Label="Disco" Value="@(DiscoService.IsRunning)" ValueChanged="@SetDiscoRunning" />
+    </MudStack>
+</MudAppBar>

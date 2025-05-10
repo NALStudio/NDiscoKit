@@ -3,11 +3,17 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 
 namespace NDiscoKit.Services;
+
+
+
 public interface IAudioRecordingService
 {
     AudioSource? Source { get; }
     event EventHandler<AudioSource?>? SourceChanged;
 
+    /// <summary>
+    /// The recorded audio data in stereo 16 bit PCM.
+    /// </summary>
     event EventHandler<ReadOnlyMemory<byte>>? DataAvailable;
 
     /// <summary>
