@@ -1,6 +1,6 @@
-﻿using DiscoKit.Audio.Internals;
-using NAudio.CoreAudioApi;
+﻿using NAudio.CoreAudioApi;
 using NAudio.Wave;
+using NDiscoKit.Audio.Internals;
 using System.Diagnostics;
 
 namespace NDiscoKit.Audio;

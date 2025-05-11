@@ -3,7 +3,7 @@ using NAudio.Wasapi.CoreAudioApi.Interfaces;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace DiscoKit.Audio.Internals;
+namespace NDiscoKit.Audio.Internals;
 
 #nullable disable
 // Copied: https://github.com/joseluisct/AppLoopback/blob/38cfc1eac6cc2b3d12f27d8bde33de69b48a0805/ProcLoopback/ActivateAudioInterface.cs

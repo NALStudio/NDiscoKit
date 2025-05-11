@@ -3,7 +3,7 @@ using NAudio.CoreAudioApi.Interfaces;
 using NAudio.Wave;
 using System.Runtime.InteropServices;
 
-namespace DiscoKit.Audio.Internals;
+namespace NDiscoKit.Audio.Internals;
 
 #nullable disable
 
