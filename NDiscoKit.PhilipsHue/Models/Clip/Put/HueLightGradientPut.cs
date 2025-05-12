@@ -1,4 +1,4 @@
-﻿using NDiscoKit.PhilipsHue.Enums;
+﻿using NDiscoKit.PhilipsHue.Enums.Clip;
 using NDiscoKit.PhilipsHue.Models.Clip.Generic;
 using System.Collections.Immutable;
 

@@ -30,7 +30,8 @@ public sealed class AppAudioRecorder : IAsyncDisposable
     }
 
     /// <summary>
-    /// This task is very slow to complete (over a second)
+    /// <para>This task is very slow to complete (over a second).</para>
+    /// <para>This function seems to fail around 30 % of the times, so consider using a try-catch and retry if necessary.</para>
     /// </summary>
     public static async Task<AppAudioRecorder> StartRecordAsync(int processId, bool includeProcessTree = false)
     {

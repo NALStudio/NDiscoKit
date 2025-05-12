@@ -51,7 +51,7 @@ public class LocalHueApi : HueApi
     {
         HttpResponseMessage resp = await http.GetAsync(fullEndpoint, cancellationToken);
 
-        logger?.Log(level, "Request sent:\n{}", resp.RequestMessage);
+        logger?.Log(level, "{}: {}", resp.RequestMessage?.Method, resp.RequestMessage?.RequestUri);
 
         return await HandleResponse<T>(resp, cancellationToken);
     }
@@ -64,7 +64,7 @@ public class LocalHueApi : HueApi
         {
             HttpContent? content = resp.RequestMessage?.Content;
             string? contentText = content is not null ? await content.ReadAsStringAsync(cancellationToken) : null;
-            logger.LogInformation("Request sent:\n{}\nWith content:\n{}", resp.RequestMessage, contentText);
+            logger.Log(level, "{}: {}\n{}", resp.RequestMessage?.Method, resp.RequestMessage?.RequestUri, contentText);
         }
 
         ImmutableArray<HueResourceIdentifier> result = await HandleResponse<HueResourceIdentifier>(resp, cancellationToken);

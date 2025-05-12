@@ -23,4 +23,8 @@
     <ProjectReference Include="..\NDiscoKit.Python\NDiscoKit.Python.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Components\Canvases\" />
+  </ItemGroup>
+
 </Project>
