@@ -19,10 +19,13 @@ public class AudioProcessorResult
         T1 = t1;
         T2 = t2;
 
-        Beats.AddRange(beats);
-
         if (reset)
+        {
+            Beats.Clear();
             WasReset = true;
+        }
+
+        Beats.AddRange(beats);
     }
 
     public IEnumerable<double> BeatsAfter(double time)
