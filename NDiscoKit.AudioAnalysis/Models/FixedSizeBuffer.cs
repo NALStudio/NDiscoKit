@@ -25,7 +25,7 @@ internal class FixedSizeBuffer<T>
     /// <remarks>
     /// If <paramref name="values"/> length is longer than the size of the buffer, only the last N elements are added.
     /// </remarks>
-    public void Push(scoped ReadOnlySpan<T> values)
+    public void Push(scoped in ReadOnlySpan<T> values)
     {
         if (values.Length >= _buffer.Length)
         {

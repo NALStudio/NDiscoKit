@@ -6,6 +6,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <ItemGroup>
+    <None Remove="Pages\VisualizationPage.razor.js" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Pages\VisualizationPage.razor.js" />
+  </ItemGroup>
+
 
   <ItemGroup>
     <SupportedPlatform Include="browser" />

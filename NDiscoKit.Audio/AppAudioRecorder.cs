@@ -58,7 +58,7 @@ public sealed class AppAudioRecorder : IAsyncDisposable
         // args.Exception is actually nullable even though it's not annotated as such
         Exception? err = (Exception?)args.Exception;
 
-        RecordingStopped?.Invoke(sender, err);
+        RecordingStopped?.Invoke(this, err);
 
         if (err is null)
             captureEnded.SetResult();

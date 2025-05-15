@@ -4,8 +4,6 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace NDiscoKit.Services;
 
-
-
 public interface IAudioRecordingService
 {
     AudioSource? Source { get; }

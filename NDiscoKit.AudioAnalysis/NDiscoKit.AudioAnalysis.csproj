@@ -7,6 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="FftSharp" Version="2.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\NDiscoKit.Audio\NDiscoKit.Audio.csproj" />
     <ProjectReference Include="..\NDiscoKit.Python\NDiscoKit.Python.csproj" />
   </ItemGroup>

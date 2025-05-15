@@ -1,4 +1,5 @@
-﻿using NDiscoKit.Models.Settings;
+﻿using Microsoft.Extensions.Logging;
+using NDiscoKit.Models.Settings;
 using System.Text.Json;
 
 namespace NDiscoKit.Services;
@@ -6,10 +7,12 @@ public class SettingsService
 {
     private const string _kSettingsKey = "settings";
 
+    private readonly ILogger<SettingsService> logger;
     private readonly IAppDataService appData;
     private readonly JsonSerializerOptions serializerOptions;
-    public SettingsService(IAppDataService appData)
+    public SettingsService(ILogger<SettingsService> logger, IAppDataService appData)
     {
+        this.logger = logger;
         this.appData = appData;
 
         serializerOptions = new()
@@ -42,7 +45,18 @@ public class SettingsService
                 return _settings;
 
             // Load settings
-            Settings? s = await appData.GetAsync<Settings>(_kSettingsKey, serializerOptions);
+            Settings? s;
+
+            try
+            {
+                s = await appData.GetAsync<Settings>(_kSettingsKey, serializerOptions);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to load settings. Loading default settings instead...");
+                s = null;
+            }
+
             if (s is null)
             {
                 s = new Settings();
