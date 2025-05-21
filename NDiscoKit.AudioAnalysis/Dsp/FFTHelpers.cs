@@ -3,7 +3,7 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace NDiscoKit.AudioAnalysis.Dsp;
-internal static class FFTHelpers
+public static class FFTHelpers
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int PositiveLength(int spectrumLength) => (spectrumLength / 2) + 1;
@@ -55,6 +55,24 @@ internal static class FFTHelpers
             powers[i] = ComputeDecibel(powers[i]);
     }
 
+    /// <summary>
+    /// Convert power spectrum density from RMS to dB units.
+    /// </summary>
+    /// <remarks>
+    /// The input spans must be of equal length.
+    /// </remarks>
+    public static void MagnitudeToPower(in Span<double> powers, in ReadOnlySpan<double> magnitudes)
+    {
+        if (powers.Length != magnitudes.Length)
+            throw new ArgumentException("Inputs must be of equal length.");
+
+        for (int i = 0; i < powers.Length; i++)
+            powers[i] = ComputeDecibel(magnitudes[i]);
+    }
+
+    /// <summary>
+    /// Compute the dB power of the given <paramref name="magnitude"/>.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static double ComputeDecibel(double magnitude) => 20 * Math.Log10(magnitude);
 }

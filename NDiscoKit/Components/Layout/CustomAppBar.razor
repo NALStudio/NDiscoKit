@@ -8,22 +8,12 @@
     </MudStack>
 
     <MudStack Row AlignItems="AlignItems.Center">
-        <MudMenu Disabled="@startingRecord" OpenChanged="AudioSourceMenuOpened">
+        <MudMenu OpenChanged="AudioSourceMenuOpened">
             <ActivatorContent>
-                @if (!startingRecord)
-                {
+                @{
                     AudioSource? source = AudioService.Source;
                     <MudChip T="object" Icon="@(GetAudioSourceIcon(source, inheritColor: true))" Color="@(GetAudioSourceColor(source))">
                         @(GetAudioSourceLabel(source))
-                    </MudChip>
-                }
-                else
-                {
-                    <MudChip T="object" Color="@(GetAudioSourceColor(startingRecordSource))">
-                        <MudStack Row AlignItems="AlignItems.Center" Spacing="2">
-                            <MudProgressCircular Indeterminate Size="Size.Small" Color="Color.Inherit" />
-                            Starting...
-                        </MudStack>
                     </MudChip>
                 }
             </ActivatorContent>

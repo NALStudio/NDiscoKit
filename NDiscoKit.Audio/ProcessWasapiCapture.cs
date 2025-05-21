@@ -1,9 +1,10 @@
 ﻿using NAudio.CoreAudioApi;
 using NAudio.CoreAudioApi.Interfaces;
 using NAudio.Wave;
+using NDiscoKit.Audio.Internals;
 using System.Runtime.InteropServices;
 
-namespace NDiscoKit.Audio.Internals;
+namespace NDiscoKit.Audio;
 
 #nullable disable
 
@@ -15,7 +16,7 @@ namespace NDiscoKit.Audio.Internals;
 /// Audio Capture using Wasapi
 /// See http://msdn.microsoft.com/en-us/library/dd370800%28VS.85%29.aspx
 /// </summary>
-internal class ProcessWasapiCapture : IWaveIn
+public class ProcessWasapiCapture : IWaveIn
 {
     private const long ReftimesPerSec = 10000000;
     private const long ReftimesPerMillisec = 10000;

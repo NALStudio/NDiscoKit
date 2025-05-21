@@ -1,12 +1,6 @@
-﻿using CSnakes.Runtime;
-using NDiscoKit.Audio;
-using NDiscoKit.Audio.AudioSources;
-using NDiscoKit.AudioAnalysis.Models;
-using NDiscoKit.AudioAnalysis.Processors;
-using System.Diagnostics;
+﻿namespace NDiscoKit.AudioAnalysis;
 
-namespace NDiscoKit.AudioAnalysis;
-
+/*
 public sealed class AudioAnalyzer : IAsyncDisposable
 {
     private readonly AppAudioRecorder recorder;
@@ -108,3 +102,4 @@ public sealed class AudioAnalyzer : IAsyncDisposable
         processor.Dispose();
     }
 }
+*/

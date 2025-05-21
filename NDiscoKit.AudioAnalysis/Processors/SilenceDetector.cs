@@ -1,24 +1,24 @@
-﻿using NAudio.Wave;
-using System.Runtime.InteropServices;
+﻿namespace NDiscoKit.AudioAnalysis.Processors;
 
-namespace NDiscoKit.AudioAnalysis.Processors;
+/*
 internal class SilenceDetector
 {
-    private readonly short[] _buffer;
-    private int _bufferSize = 0;
+    private readonly float[] _buffer;
+    private int _approxBufferSize;
 
-    public SilenceDetector(TimeSpan duration, WaveFormat format)
+    public SilenceDetector(int bufferSize)
     {
-        if (!format.Equals(new WaveFormat()))
-            throw new ArgumentException("PCM 44.1 kHz stereo 16 bit format required.");
-
-        _buffer = new short[GetBufferSize(duration, format.SampleRate)];
+        _buffer = new float[bufferSize];
     }
 
-    private bool BufferIsFull => _bufferSize >= _buffer.Length;
+    public SilenceDetector(TimeSpan duration, int sampleRate) : this(GetBufferSize(duration, sampleRate))
+    {
+    }
+
+    private bool BufferIsFull => _approxBufferSize >= _buffer.Length;
     public bool IsSilence { get; private set; }
 
-    private static int GetBufferSize(TimeSpan duration, int sampleRate)
+    public static int GetBufferSize(TimeSpan duration, int sampleRate)
     {
         double size = duration.TotalSeconds * sampleRate;
         return checked((int)size);
@@ -26,30 +26,28 @@ internal class SilenceDetector
 
     public void Reset()
     {
-        _bufferSize = 0;
+        _approxBufferSize = 0;
         IsSilence = false;
     }
 
-    public void Update(scoped ReadOnlySpan<byte> data)
+    public void Process(in ReadOnlySpan<float> mono32)
     {
-        WriteBuffer(MemoryMarshal.Cast<byte, short>(data));
+        WriteBuffer(in mono32);
         IsSilence = BufferIsFull && GetIsSilence(_buffer);
     }
 
-    private void WriteBuffer(scoped ReadOnlySpan<short> data)
+    private void WriteBuffer(in ReadOnlySpan<float> data)
     {
-        Span<short> buffer = _buffer.AsSpan();
+        Span<float> buffer = _buffer.AsSpan();
         buffer[data.Length..].CopyTo(buffer);
         data.CopyTo(buffer[^data.Length..]);
 
-        if (_bufferSize + data.Length < _buffer.Length)
-            _bufferSize += data.Length;
-        else
-            _bufferSize = _buffer.Length;
+        if (_approxBufferSize < _buffer.Length)
+            _approxBufferSize += data.Length;
     }
 
     // https://github.com/naudio/NAudio/issues/320#issuecomment-380832081
-    private static bool GetIsSilence(Span<short> buffer)
+    private static bool GetIsSilence(ReadOnlySpan<float> buffer)
     {
         // We don't care how many channels we have, this method will check all provided samples
 
@@ -67,3 +65,4 @@ internal class SilenceDetector
         return true;
     }
 }
+*/

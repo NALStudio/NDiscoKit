@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using NAudio.Wave;
 using NDiscoKit.Audio;
 using NDiscoKit.Audio.AudioSources;
 using NDiscoKit.Models;
@@ -10,11 +11,11 @@ using System.Runtime.Versioning;
 namespace NDiscoKit.Windows.Services;
 
 [SupportedOSPlatform("windows")]
-internal class WindowsAudioRecordingService : IAudioRecordingService, IAsyncDisposable
+internal class WindowsAudioRecordingService : AudioRecordingService, IAsyncDisposable
 {
-    private class RecorderData
+    private class RecordData
     {
-        public required AppAudioRecorder Recorder { get; init; }
+        public required ProcessWasapiCapture Capture { get; init; }
         public required Process Process { get; init; }
         public required AudioSource Source { get; init; }
     }
@@ -25,138 +26,144 @@ internal class WindowsAudioRecordingService : IAudioRecordingService, IAsyncDisp
         this.logger = logger;
     }
 
-    private readonly Lock recorderLock = new();
-    private RecorderData? recorder;
+    private float[]? _convertBuffer;
 
-    public AudioSource? Source => recorder?.Source;
-    public event EventHandler<AudioSource?>? SourceChanged;
+    private readonly Lock recordLock = new();
+    private RecordData? record;
 
-    public event EventHandler<ReadOnlyMemory<byte>>? DataAvailable;
+    protected override int SampleRate { get; } = new WaveFormat().SampleRate;
 
-    public bool AudioSourceSupported(AudioSource source) => GetSourceProcess(source) is not null;
+    public override AudioSource? Source => record?.Source;
+    public override event EventHandler<AudioSource?>? SourceChanged;
 
-    // Why the fuck does this work when I run it on another thread????
-    public ValueTask StartRecordAsync(AudioSource source) => new(Task.Run(() => StartRecordInternal(source)));
+    public override event EventHandler<ReadOnlyMemory<float>>? DataAvailable;
+
+    public override ValueTask StartRecordAsync(AudioSource source) => new(Task.Run(() => StartRecordInternal(source)));
     private async Task StartRecordInternal(AudioSource source) // Task so that Task.Run can wrap it correctly
     {
+        StopRecord();
+
         if (!TryFindProcess(source, out Process? audioSourceProcess, out AudioSourceProcess? audioSource))
             throw new InvalidOperationException("Process not found for source.");
 
-        lock (recorderLock)
-        {
-            if (this.recorder is not null
-                && this.recorder.Source == source
-                && this.recorder.Process.Id == audioSourceProcess.Id) // Check id since the process object instances are unique
-            {
-                // The user activated record on the same process,
-                // return early to avoid COMExceptions
-                return;
-            }
-        }
-
-        RecorderData? recorder = null;
-        bool recorderAttached = false;
+        RecordData? record = null;
         try
         {
-            int recorderTries = 0;
-            const int maxRecorderTries = 3;
-            while (recorder is null)
+            record = new()
             {
-                if (recorderTries > 0)
-                    await Task.Delay(recorderTries * 500);
+                Capture = await ProcessWasapiCapture.CreateForProcessCaptureAsync(audioSourceProcess.Id, includeProcessTree: audioSource.CaptureEntireProcessTree),
+                Process = audioSourceProcess,
+                Source = source,
+            };
 
-                try
-                {
-                    recorder = new RecorderData()
-                    {
-                        Recorder = await AppAudioRecorder.StartRecordAsync(audioSourceProcess.Id, includeProcessTree: audioSource.CaptureEntireProcessTree),
-                        Process = audioSourceProcess,
-                        Source = source
-                    };
+            SubscribeRecord(record);
 
-                    // Verify that the recorder actually started recording and didn't end with an error.
-                    try
-                    {
-                        await recorder.Recorder.WaitForRecordEnd().WaitAsync(TimeSpan.FromSeconds(1));
-                    }
-                    catch (TimeoutException)
-                    {
-                    }
-                }
-                catch when (recorderTries < maxRecorderTries)
-                {
-                    recorderTries++;
-                }
-            }
+            record.Capture.StartRecording();
 
-            recorder.Process.EnableRaisingEvents = true;
-            recorder.Process.Exited += Process_Exited;
-
-            recorder.Recorder.DataAvailable += Recorder_DataAvailable;
-            recorder.Recorder.RecordingStopped += Recorder_RecordingStopped;
-
-            // Final check in case the recording crashed before event subscription
-            if (recorder.Recorder.IsRecording)
+            AttachRecord(record, out RecordData? oldRecord);
+            if (oldRecord is not null)
             {
-                await AttachRecorderAsync(recorder);
-                recorderAttached = true;
+                logger.LogError("Another record was already running. The old recording was overridden.");
+                DisposeRecord(record);
             }
         }
         finally
         {
-            if (recorder is not null)
+            if (record is null || record != this.record)
             {
-                if (!recorderAttached)
-                    await DisposeRecorderAsync(recorder);
-            }
-            else
-            {
-                audioSourceProcess?.Dispose();
+                if (record is not null)
+                    DisposeRecord(record);
+                else
+                    audioSourceProcess.Dispose();
             }
         }
     }
 
-    private async void Process_Exited(object? sender, EventArgs e)
+    public override ValueTask StopRecordAsync()
+    {
+        StopRecord();
+        return ValueTask.CompletedTask;
+    }
+
+    /// <summary>
+    /// Returns the stopped record data if available.
+    /// </summary>
+    private RecordData? StopRecord()
+    {
+        DetachRecord(out RecordData? oldRecord);
+        if (oldRecord is not null)
+            DisposeRecord(oldRecord);
+        return oldRecord;
+    }
+
+    private void AttachRecord(RecordData? value, out RecordData? oldValue)
+    {
+        lock (recordLock)
+        {
+            oldValue = record;
+            record = value;
+        }
+
+        if (value?.Source != oldValue?.Source)
+            SourceChanged?.Invoke(this, value?.Source);
+    }
+
+    private void DetachRecord(out RecordData? oldValue)
+    {
+        lock (recordLock)
+        {
+            oldValue = record;
+            record = null;
+        }
+
+        if (oldValue is not null)
+            SourceChanged?.Invoke(this, null);
+    }
+
+    private void Capture_DataAvailable(object? _, WaveInEventArgs e)
+    {
+        ReadOnlySpan<byte> source = e.Buffer;
+
+        // Ensure correct convert buffer size
+        int convertBufferLength = source.Length / 2;
+        if (_convertBuffer?.Length != convertBufferLength)
+        {
+            logger.LogInformation("Resizing convert buffer...");
+            _convertBuffer = new float[convertBufferLength];
+        }
+
+        Span<float> convert = _convertBuffer.AsSpan();
+
+        // Convert from 16 bit stereo to 32 bit mono
+        int length = e.BytesRecorded;
+        Debug.Assert(length % 2 == 0); // length is even (left and right channels are symmetrical in length)
+        int sourceIndex = 0;
+        int bufferIndex = 0;
+        while (sourceIndex < length)
+        {
+            short left = source[sourceIndex++];
+            short right = source[sourceIndex++];
+
+            _convertBuffer[bufferIndex++] = (left + right) / (float)(2 * short.MaxValue);
+        }
+
+        // Invoke update
+        DataAvailable?.Invoke(this, _convertBuffer.AsMemory(0, bufferIndex));
+    }
+
+    private void Capture_RecordingStopped(object? sender, StoppedEventArgs? e)
     {
         try
         {
-            Process? p = sender as Process;
-            AppAudioRecorder? recorder = null;
-            lock (recorderLock)
+            ProcessWasapiCapture? capture = sender as ProcessWasapiCapture;
+
+            RecordData? record = StopRecord();
+            if (capture is null || capture != record?.Capture)
             {
-                if (p is not null && p == this.recorder?.Process)
-                    recorder = this.recorder.Recorder;
+                logger.LogError("An unknown capture has stopped resulting in a full recording stop.");
+                if (capture is not null)
+                    DisposeCapture(capture);
             }
-
-            if (recorder is not null)
-                await DetachRecorderAsync(recorder);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to detach exited process.");
-        }
-    }
-
-    public ValueTask StopRecordAsync() => new(Task.Run(StopRecordInternal));
-    private async Task StopRecordInternal()
-    {
-        RecorderData? recorder = this.recorder;
-        if (recorder is not null)
-            await DetachRecorderAsync(recorder.Recorder);
-    }
-
-    private void Recorder_DataAvailable(object? _, ReadOnlyMemory<byte> e)
-    {
-        DataAvailable?.Invoke(this, e);
-    }
-
-    private async void Recorder_RecordingStopped(object? sender, Exception? e)
-    {
-        try
-        {
-            AppAudioRecorder? recorder = sender as AppAudioRecorder;
-            if (recorder is not null)
-                await DetachRecorderAsync(recorder);
         }
         catch (Exception ex)
         {
@@ -164,82 +171,59 @@ internal class WindowsAudioRecordingService : IAudioRecordingService, IAsyncDisp
         }
     }
 
-    private async ValueTask AttachRecorderAsync(RecorderData recorder)
+    private void Process_Exited(object? sender, EventArgs e)
     {
-        RecorderData? oldRecorder = null;
         try
         {
-            lock (recorderLock)
+            Process? p = sender as Process;
+
+            RecordData? record = StopRecord();
+            if (p is null || p.Id != record?.Process.Id)
             {
-                oldRecorder = this.recorder;
-                this.recorder = recorder;
-                SourceChanged?.Invoke(this, Source);
+                logger.LogError("An unknown process has exited resulting in a full recording stop.");
+                if (p is not null)
+                    DisposeProcess(p);
             }
         }
-        finally
+        catch (Exception ex)
         {
-            await DisposeRecorderAsync(oldRecorder);
+            logger.LogError(ex, "Failed to detach exited process.");
         }
     }
 
-    /// <summary>
-    /// Returns <see langword="true"/> if the recorder was detached, <see langword="false"/> if the current recorder didn't match the one provided as <paramref name="recorder"/>.
-    /// </summary>
-    /// <remarks>
-    /// The <paramref name="recorder"/> will be disposed regardless of detach being successful.
-    /// </remarks>
-    private async ValueTask<bool> DetachRecorderAsync(AppAudioRecorder recorder, bool dispose = true)
+    private void SubscribeRecord(RecordData record)
     {
-        RecorderData? oldRecorder = null;
-        try
-        {
-            lock (recorderLock)
-            {
-                if (recorder == this.recorder?.Recorder)
-                {
-                    oldRecorder = this.recorder;
-                    this.recorder = null;
-                    SourceChanged?.Invoke(this, Source);
+        ArgumentNullException.ThrowIfNull(record);
 
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-        }
-        finally
-        {
-            if (dispose)
-            {
-                if (oldRecorder is not null)
-                    await DisposeRecorderAsync(oldRecorder);
-                else
-                    await DisposeAudioRecorderAsync(recorder);
-            }
-        }
+        record.Process.EnableRaisingEvents = true;
+        record.Process.Exited += Process_Exited;
+
+        record.Capture.DataAvailable += Capture_DataAvailable;
+        record.Capture.RecordingStopped += Capture_RecordingStopped;
     }
 
-    private async ValueTask DisposeRecorderAsync(RecorderData? recorder)
+    private void DisposeRecord(RecordData record)
     {
-        if (recorder is null)
-            return;
+        ArgumentNullException.ThrowIfNull(record);
 
-        await DisposeAudioRecorderAsync(recorder.Recorder);
-
-        recorder.Process.Exited -= Process_Exited;
-        recorder.Process.Dispose();
+        DisposeCapture(record.Capture);
+        DisposeProcess(record.Process);
     }
 
-    private async ValueTask DisposeAudioRecorderAsync(AppAudioRecorder recorder)
+    private void DisposeCapture(ProcessWasapiCapture capture)
     {
-        recorder.DataAvailable -= Recorder_DataAvailable;
-        recorder.RecordingStopped -= Recorder_RecordingStopped;
-        await recorder.DisposeAsync();
+        capture.DataAvailable -= Capture_DataAvailable;
+        capture.RecordingStopped -= Capture_RecordingStopped;
+        capture.Dispose();
     }
 
-    public bool TryFindProcess(AudioSource source, [MaybeNullWhen(false)] out Process process) => TryFindProcess(source, out process, out _);
+    private void DisposeProcess(Process process)
+    {
+        process.Exited -= Process_Exited;
+        process.Dispose();
+    }
+
+    public override bool TryFindProcess(AudioSource source, [MaybeNullWhen(false)] out Process process) => TryFindProcess(source, out process, out _);
 
     private static bool TryFindProcess(AudioSource source, [MaybeNullWhen(false)] out Process process, [MaybeNullWhen(false)] out AudioSourceProcess audioSource)
     {

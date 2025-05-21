@@ -1,8 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
-using NDiscoKit.AudioAnalysis;
 
 namespace NDiscoKit.Services;
-internal class DiscoService : IAsyncDisposable
+internal class DiscoService
 {
     public class RunningChangedEventArgs : EventArgs
     {
@@ -19,8 +18,6 @@ internal class DiscoService : IAsyncDisposable
     private readonly ILogger<DiscoService> logger;
     private readonly PythonService python;
     private readonly DiscoLightService lightService;
-
-    private AudioAnalyzer? analyzer;
 
     public DiscoService(ILogger<DiscoService> logger, PythonService python, DiscoLightService lightService)
     {
@@ -83,11 +80,5 @@ internal class DiscoService : IAsyncDisposable
     private async Task BackgroundTask(CancellationToken cancellationToken)
     {
         await Task.Delay(-1, cancellationToken);
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (analyzer is not null)
-            await analyzer.DisposeAsync();
     }
 }

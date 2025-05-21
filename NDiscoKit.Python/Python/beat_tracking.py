@@ -131,7 +131,7 @@ def _create_rnn_beat_args(fps: int, **kwargs) -> dict:
         **kwargs
     )
 
-def process_trackers(fps: int, hop_index: int, hop_size: int, frame_size: int, buffer: bytes, tracker: Processor, reset: bool = False, sample_rate: int = 44100, bits_per_sample: int = 32, num_channels: int = 1) -> list[Buffer]:
+def process_trackers(fps: int, hop_index: int, hop_size: int, frame_size: int, buffer: bytes, tracker: Processor, reset: bool = False, sample_rate: int = 44100, num_channels: int = 1) -> list[Buffer]:
     if not isinstance(tracker, Processor):
         raise ValueError("Tracker must be a valid processor instance.")
 

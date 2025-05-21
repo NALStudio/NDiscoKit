@@ -20,16 +20,13 @@ public partial class CustomAppBar : IDisposable
     private SettingsService SettingsService { get; init; } = default!;
 
     [Inject]
-    private IAudioRecordingService AudioService { get; init; } = default!;
+    private AudioRecordingService AudioService { get; init; } = default!;
 
     [Inject]
     private DiscoService DiscoService { get; init; } = default!;
 
     [Parameter, EditorRequired]
     public EventCallback ToggleDrawer { get; set; }
-
-    private bool startingRecord;
-    private AudioSource? startingRecordSource;
 
     private readonly Dictionary<AudioSource, bool> sourceFoundCache = new();
 
@@ -91,16 +88,9 @@ public partial class CustomAppBar : IDisposable
         try
         {
             if (value.HasValue)
-            {
-                startingRecord = true;
-                startingRecordSource = value;
-
                 await AudioService.StartRecordAsync(value.Value);
-            }
             else
-            {
                 await AudioService.StopRecordAsync();
-            }
 
             if (updateSettings)
                 await SettingsService.UpdateSettingsAsync(s => s with { Source = value });
@@ -109,12 +99,6 @@ public partial class CustomAppBar : IDisposable
         {
             Logger.LogError(ex, "Failed to set audio source.");
             Snackbar.Add("Failed to set audio source.", Severity.Error);
-        }
-
-        if (startingRecord)
-        {
-            startingRecord = false;
-            StateHasChanged();
         }
     }
 

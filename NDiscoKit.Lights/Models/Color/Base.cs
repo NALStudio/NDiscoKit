@@ -58,6 +58,7 @@ public readonly partial struct NDKColor : IEquatable<NDKColor>
         return !(left == right);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void ThrowIfNotFinite(double value, [CallerArgumentExpression(nameof(value))] string? paramName = null)
     {
         if (!double.IsFinite(value))

@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 
 namespace NDiscoKit.AudioAnalysis.Models;
-internal class FixedSizeBuffer<T>
+public class FixedSizeBuffer<T>
 {
     public int Capacity => _buffer.Length;
 

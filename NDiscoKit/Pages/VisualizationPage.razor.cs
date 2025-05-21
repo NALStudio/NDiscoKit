@@ -1,10 +1,7 @@
 ﻿using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
-using NDiscoKit.AudioAnalysis.Processors;
 using NDiscoKit.Services;
-using System.Buffers;
-using System.Runtime.InteropServices;
 
 namespace NDiscoKit.Pages;
 public partial class VisualizationPage : IAsyncDisposable
@@ -16,12 +13,12 @@ public partial class VisualizationPage : IAsyncDisposable
     private IJSRuntime JS { get; init; } = default!;
 
     [Inject]
-    private IAudioRecordingService Recording { get; init; } = default!;
+    private AudioRecordingService Recording { get; init; } = default!;
 
     private ElementReference canvasContainerRef;
     private DotNetObjectReference<VisualizationPage>? thisRef;
 
-    private readonly AudioVisualizationProcessor processor = new();
+    // private readonly VisualizationProcessor processor = new();
 
     private Task<IJSObjectReference>? module;
 
@@ -47,29 +44,16 @@ public partial class VisualizationPage : IAsyncDisposable
         }
     }
 
-    private void Recording_DataAvailable(object? sender, ReadOnlyMemory<byte> e)
+    private void Recording_DataAvailable(object? sender, ReadOnlyMemory<float> e)
     {
-        ReadOnlySpan<short> stereo16 = MemoryMarshal.Cast<byte, short>(e.Span);
-
-        int length = stereo16.Length / 2;
-        float[] mono32Arr = ArrayPool<float>.Shared.Rent(length);
-        Span<float> mono32 = mono32Arr.AsSpan(0, length);
-        try
-        {
-            Stereo16ToMono32(stereo16, in mono32);
-            processor.Process(mono32);
-        }
-        finally
-        {
-            mono32.Clear();
-            ArrayPool<float>.Shared.Return(mono32Arr);
-        }
+        // processor.Process(e.Span);
     }
 
     [JSInvokable]
     public double[] JsGetBars()
     {
-        return processor.Output;
+        return [1, 1, 1];
+        // return processor.Output;
     }
 
     private void Recording_SourceChanged(object? sender, Models.AudioSource? e)

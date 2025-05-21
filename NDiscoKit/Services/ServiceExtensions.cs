@@ -1,16 +1,14 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using MudBlazor;
 using MudBlazor.Services;
-using System.Runtime.Versioning;
 
 namespace NDiscoKit.Services;
 public static class ServiceExtensions
 {
-    [UnsupportedOSPlatform("browser")]
     public static void AddNDiscoKitServices(
         this IServiceCollection services,
         Func<IServiceProvider, IAppDataService> appDataServiceFactory,
-        Func<IServiceProvider, IAudioRecordingService> audioRecordingServiceFactory
+        Func<IServiceProvider, AudioRecordingService> audioRecordingServiceFactory
     )
     {
         services.AddMudServices(config =>
