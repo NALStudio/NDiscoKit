@@ -1,4 +1,5 @@
 ﻿using CommunityToolkit.HighPerformance;
+using CSnakes.Runtime;
 using CSnakes.Runtime.Python;
 using NAudio.Wave;
 using NDiscoKit.AudioAnalysis.Models;
@@ -10,9 +11,9 @@ namespace NDiscoKit.AudioAnalysis.Processors;
 /// <summary>
 /// Not thread-safe.
 /// </summary>
-internal sealed class MadmomProcessor : IDisposable
+public sealed class MadmomProcessor : IDisposable
 {
-    public readonly struct Configuration
+    public class Configuration
     {
         public Configuration(WaveFormat format, int fps = 100)
         {
@@ -42,15 +43,21 @@ internal sealed class MadmomProcessor : IDisposable
     }
 
 
-
     public Configuration Config { get; }
+
+    private readonly AudioProcessorResult _result;
+
+    /// <summary>
+    /// Result values might be incorrect if accessed during processing.
+    /// </summary>
+    public ReadOnlyAudioProcessorResult Result { get; }
+
     public IBeatTracking BeatTracking { get; }
 
     private bool disposed = false;
 
     private readonly PyObject tracker;
 
-    private double currentTime = 0d;
     private int hopIndex = 0;
     private int hopOffset = 0;
     private readonly byte[] buffer;
@@ -58,6 +65,8 @@ internal sealed class MadmomProcessor : IDisposable
     private MadmomProcessor(Configuration config, IBeatTracking beatTracking, PyObject tracker)
     {
         Config = config;
+        _result = new();
+        Result = new(_result);
 
         BeatTracking = beatTracking;
 
@@ -75,13 +84,13 @@ internal sealed class MadmomProcessor : IDisposable
         );
     }
 
-    public void Process(scoped in ReadOnlySpan<float> data, in AudioProcessorResult? result, bool reset = false)
+    public void Process(in ReadOnlySpan<float> data, bool reset = false)
     {
         ThrowIfDisposed();
 
         Span<float> buffer = MemoryMarshal.Cast<byte, float>(this.buffer);
 
-        result?.BeforeProcess();
+        _result.BeforeProcess();
 
         int hopSize = Config.HopSize;
         int sampleRate = Config.Format.SampleRate;
@@ -103,7 +112,7 @@ internal sealed class MadmomProcessor : IDisposable
 
                 if (reset)
                     hopIndex = 0;
-                ProcessHop(in result, hopIndex, reset: reset);
+                ProcessHop(hopIndex, reset: reset);
                 hopIndex++;
                 reset = false;
             }
@@ -118,7 +127,8 @@ internal sealed class MadmomProcessor : IDisposable
             }
         }
 
-        currentTime = ((hopIndex * hopSize) + hopOffset) / sampleRate;
+        // TODO: Sync madmom time with C# time
+        double currentTime = ((hopIndex * hopSize) + hopOffset) / sampleRate;
     }
 
     private static void WriteBuffer(scoped ref readonly Span<float> buffer, scoped in ReadOnlySpan<float> data)
@@ -127,7 +137,7 @@ internal sealed class MadmomProcessor : IDisposable
         data.CopyTo(buffer[^data.Length..]);
     }
 
-    private void ProcessHop(ref readonly AudioProcessorResult? apResult, int hopIndex, bool reset)
+    private void ProcessHop(int hopIndex, bool reset)
     {
         // Buffer data seems to be intact here after all of the conversions and buffer writes...
         // I verified this by manually listening to the extracted buffer data from hops.
@@ -140,7 +150,7 @@ internal sealed class MadmomProcessor : IDisposable
             tracker: tracker,
             reset: reset,
             sampleRate: Config.Format.SampleRate,
-            bitsPerSample: 8 * sizeof(float),
+            bitsPerSample: Config.Format.BitsPerSample,
             numChannels: Config.Format.Channels
         );
 
@@ -148,7 +158,7 @@ internal sealed class MadmomProcessor : IDisposable
         IPyBuffer tempo = result[1];
 
         (Prediction<Tempo>? T1, Prediction<Tempo>? T2) = GetDominantTempo(tempo);
-        apResult?.AfterHop(
+        _result.AfterHop(
             t1: T1,
             t2: T2,
             beats: beats.AsReadOnlySpan<double>(),

@@ -1,5 +1,6 @@
 ﻿using CSnakes.Runtime;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace NDiscoKit.Python;
 public sealed class NDKPython : IDisposable, IAsyncDisposable
@@ -20,9 +21,9 @@ public sealed class NDKPython : IDisposable, IAsyncDisposable
     /// <remarks>
     /// This function will initialize outside of the main thread.
     /// </remarks>
-    public static Task<NDKPython> InitializeAsync(int? dependenciesVersion = null)
+    public static Task<NDKPython> InitializeAsync(int? dependenciesVersion = null, string? venvPath = null)
     {
-        Task<NDKPython> initialize = new(() => Initialize(dependenciesVersion), TaskCreationOptions.LongRunning);
+        Task<NDKPython> initialize = new(() => Initialize(dependenciesVersion, venvPath), TaskCreationOptions.LongRunning);
         initialize.Start();
         return initialize;
     }
@@ -34,15 +35,15 @@ public sealed class NDKPython : IDisposable, IAsyncDisposable
     /// If the value of <paramref name="dependeciesVersion"/> does not match <see cref="DependenciesVersion"/>, pip dependencies will be reinstalled.
     /// </para>
     /// </summary>
-    public static NDKPython Initialize(int? dependeciesVersion = null)
+    public static NDKPython Initialize(int? dependeciesVersion = null, string? venvPath = null)
     {
         bool pipInstall = dependeciesVersion != DependenciesVersion;
 
         ServiceCollection services = new();
-        services.AddLogging();
+        services.AddLogging(config => config.AddDebug());
 
         string home = Path.Join(Path.GetDirectoryName(Environment.ProcessPath), "Python");
-        string venv = Path.Join(home, ".venv");
+        string venv = venvPath ?? Path.Join(home, ".venv");
 
         IPythonEnvironmentBuilder python = services.WithPython()
             .WithHome(home)

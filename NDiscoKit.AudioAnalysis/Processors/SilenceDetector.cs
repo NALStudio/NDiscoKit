@@ -1,7 +1,6 @@
 ﻿namespace NDiscoKit.AudioAnalysis.Processors;
 
-/*
-internal class SilenceDetector
+public class SilenceDetector
 {
     private readonly float[] _buffer;
     private int _approxBufferSize;
@@ -30,9 +29,9 @@ internal class SilenceDetector
         IsSilence = false;
     }
 
-    public void Process(in ReadOnlySpan<float> mono32)
+    public void Process(in ReadOnlySpan<float> data)
     {
-        WriteBuffer(in mono32);
+        WriteBuffer(in data);
         IsSilence = BufferIsFull && GetIsSilence(_buffer);
     }
 
@@ -51,10 +50,10 @@ internal class SilenceDetector
     {
         // We don't care how many channels we have, this method will check all provided samples
 
-        const short SILENCE_MAX = 130;
-        const short SILENCE_MIN = -130;
+        const float SILENCE_MAX = 130 / (float)short.MaxValue;
+        const float SILENCE_MIN = -130 / (float)short.MaxValue;
 
-        foreach (short sample in buffer)
+        foreach (float sample in buffer)
         {
             if (sample > SILENCE_MAX)
                 return false;
@@ -65,4 +64,3 @@ internal class SilenceDetector
         return true;
     }
 }
-*/

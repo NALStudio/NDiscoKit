@@ -1,0 +1,16 @@
+﻿<MudDialog>
+    <DialogContent>
+        <MudStack Row Style="height:64px" AlignItems="AlignItems.Center" Spacing="4">
+            <MudProgressCircular Indeterminate Color="Color.Primary" />
+            <MudText>@Message</MudText>
+        </MudStack>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance Dialog { get; init; } = default!;
+
+    [Parameter]
+    public string? Message { get; set; }
+}

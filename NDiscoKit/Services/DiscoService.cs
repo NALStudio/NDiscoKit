@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 
 namespace NDiscoKit.Services;
-internal class DiscoService
+internal class DiscoService : IDisposable
 {
     public class RunningChangedEventArgs : EventArgs
     {
@@ -16,10 +16,10 @@ internal class DiscoService
     }
 
     private readonly ILogger<DiscoService> logger;
-    private readonly PythonService python;
+    private readonly IPythonService python;
     private readonly DiscoLightService lightService;
 
-    public DiscoService(ILogger<DiscoService> logger, PythonService python, DiscoLightService lightService)
+    public DiscoService(ILogger<DiscoService> logger, IPythonService python, DiscoLightService lightService)
     {
         this.logger = logger;
         this.python = python;
@@ -80,5 +80,10 @@ internal class DiscoService
     private async Task BackgroundTask(CancellationToken cancellationToken)
     {
         await Task.Delay(-1, cancellationToken);
+    }
+
+    public void Dispose()
+    {
+        Stop();
     }
 }

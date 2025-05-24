@@ -1,10 +1,11 @@
 ﻿using NDiscoKit.Python;
+using NDiscoKit.Services;
 
-namespace NDiscoKit.Services;
-internal class PythonService : IAsyncDisposable
+namespace NDiscoKit.Windows.Services;
+public class WindowsPythonService : IPythonService, IAsyncDisposable
 {
     private readonly SettingsService settings;
-    public PythonService(SettingsService settings)
+    public WindowsPythonService(SettingsService settings)
     {
         this.settings = settings;
     }
@@ -28,7 +29,8 @@ internal class PythonService : IAsyncDisposable
     private async Task<NDKPython> LoadPythonAsync()
     {
         int? pythonDependencies = (await settings.GetSettingsAsync()).PythonDependenciesVersion;
-        NDKPython p = await NDKPython.InitializeAsync(pythonDependencies);
+        string pythonVenv = Constants.GetAppDataDirectory(Constants.AppDataPaths.PythonEnvironmentFolder);
+        NDKPython p = await NDKPython.InitializeAsync(pythonDependencies, pythonVenv);
 
         if (NDKPython.DependenciesVersion != pythonDependencies)
             await settings.UpdateSettingsAsync(s => s with { PythonDependenciesVersion = NDKPython.DependenciesVersion });

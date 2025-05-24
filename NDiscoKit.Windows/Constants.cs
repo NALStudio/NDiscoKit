@@ -14,6 +14,7 @@ internal static class Constants
     public static class AppDataPaths
     {
         public const string WebViewUserDataFolder = "WebView";
+        public const string PythonEnvironmentFolder = "PythonVenv";
     }
 
     public const string UserAgent = "NDiscoKit/1.0";

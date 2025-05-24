@@ -1,1 +1,1 @@
-﻿git+https://github.com/CPJKU/madmom.git
+﻿git+https://github.com/NALStudio/madmom.git

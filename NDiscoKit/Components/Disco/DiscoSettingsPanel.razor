@@ -1,0 +1,13 @@
+﻿@using System.Globalization
+
+<MudPaper Outlined>
+    <MudField Class="pa-3" Style="width:196px" Label="Tempo" Variant="Variant.Outlined">
+        <MudStack Row AlignItems="AlignItems.Center">
+            <MudTooltip Text="Auto Detect">
+                <MudCheckBox Class="my-n3 mx-n2" T="bool" Value="@_autoTempo" ValueChanged="SetAutoAsync" />
+            </MudTooltip>
+            <MudNumericField T="double" Style="height:24px" HideSpinButtons Disabled="@_autoTempo" Value="@(TempoService.T1.BPM)" Culture="@(CultureInfo.CurrentCulture)" Format="N0" Min="40" Max="200" ValueChanged="SetTempo1" />
+            <MudNumericField T="double" Style="height:24px" HideSpinButtons Disabled="@_autoTempo" Value="@(TempoService.T2.BPM)" Culture="@(CultureInfo.CurrentCulture)" Format="N0" Min="80" Max="400" ValueChanged="SetTempo2" />
+        </MudStack>
+    </MudField>
+</MudPaper>

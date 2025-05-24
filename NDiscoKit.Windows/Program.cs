@@ -60,7 +60,9 @@ internal static class Program
 
         services.AddNDiscoKitServices(
             appDataServiceFactory: static _ => new WindowsAppDataService(),
-            audioRecordingServiceFactory: static services => new WindowsAudioRecordingService(services.GetRequiredService<ILogger<WindowsAudioRecordingService>>()));
+            audioRecordingServiceFactory: static s => new WindowsAudioRecordingService(s.GetRequiredService<ILogger<WindowsAudioRecordingService>>()),
+            pythonServiceFactory: static s => new WindowsPythonService(s.GetRequiredService<SettingsService>())
+        );
 
 #if DEBUG
         services.AddBlazorWebViewDeveloperTools();

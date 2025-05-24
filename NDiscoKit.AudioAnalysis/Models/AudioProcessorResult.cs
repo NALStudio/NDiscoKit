@@ -1,4 +1,6 @@
-﻿namespace NDiscoKit.AudioAnalysis.Models;
+﻿using System.Collections.ObjectModel;
+
+namespace NDiscoKit.AudioAnalysis.Models;
 
 public class AudioProcessorResult
 {
@@ -40,4 +42,21 @@ public class AudioProcessorResult
         for (int j = i; j < Beats.Count; j++)
             yield return Beats[j];
     }
+}
+
+public class ReadOnlyAudioProcessorResult
+{
+    private readonly AudioProcessorResult _result;
+    public ReadOnlyAudioProcessorResult(AudioProcessorResult result)
+    {
+        _result = result;
+
+        Beats = _result.Beats.AsReadOnly();
+    }
+
+    public Prediction<Tempo>? T1 => _result.T1;
+    public Prediction<Tempo>? T2 => _result.T2;
+
+    public ReadOnlyCollection<double> Beats { get; }
+    public bool WasReset => _result.WasReset;
 }

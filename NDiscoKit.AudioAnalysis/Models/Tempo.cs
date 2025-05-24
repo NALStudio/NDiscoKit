@@ -1,5 +1,9 @@
-﻿namespace NDiscoKit.AudioAnalysis.Models;
-public readonly struct Tempo : IEquatable<Tempo>, IComparable<Tempo>
+﻿using System.Numerics;
+
+namespace NDiscoKit.AudioAnalysis.Models;
+public readonly struct Tempo :
+    IEquatable<Tempo>, IComparable<Tempo>,
+    IMultiplyOperators<Tempo, double, Tempo>, IDivisionOperators<Tempo, double, Tempo>
 {
     public Tempo(double bpm)
     {
@@ -19,4 +23,11 @@ public readonly struct Tempo : IEquatable<Tempo>, IComparable<Tempo>
     public static bool operator >(Tempo left, Tempo right) => left.CompareTo(right) > 0;
     public static bool operator <=(Tempo left, Tempo right) => left.CompareTo(right) <= 0;
     public static bool operator >=(Tempo left, Tempo right) => left.CompareTo(right) >= 0;
+
+    public static bool operator ==(Tempo left, Tempo right) => left.Equals(right);
+    public static bool operator !=(Tempo left, Tempo right) => !(left == right);
+
+    public static Tempo operator *(double left, Tempo right) => new(left * right.BPM);
+    public static Tempo operator *(Tempo left, double right) => new(left.BPM * right);
+    public static Tempo operator /(Tempo left, double right) => new(left.BPM / right);
 }

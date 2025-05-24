@@ -6,6 +6,7 @@ using NDiscoKit.Models;
 using NDiscoKit.Services;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
 namespace NDiscoKit.Windows.Services;
@@ -122,10 +123,12 @@ internal class WindowsAudioRecordingService : AudioRecordingService, IAsyncDispo
 
     private void Capture_DataAvailable(object? _, WaveInEventArgs e)
     {
-        ReadOnlySpan<byte> source = e.Buffer;
+        ReadOnlySpan<byte> sourceBytes = e.Buffer.AsSpan(0, e.BytesRecorded);
+        ReadOnlySpan<short> source = MemoryMarshal.Cast<byte, short>(sourceBytes);
 
         // Ensure correct convert buffer size
-        int convertBufferLength = source.Length / 2;
+        // We physically cannot record more than e.Buffer.Length, so we'll ceil divide for the correct buffer length
+        int convertBufferLength = (e.Buffer.Length / 2) + 1;
         if (_convertBuffer?.Length != convertBufferLength)
         {
             logger.LogInformation("Resizing convert buffer...");
@@ -135,15 +138,13 @@ internal class WindowsAudioRecordingService : AudioRecordingService, IAsyncDispo
         Span<float> convert = _convertBuffer.AsSpan();
 
         // Convert from 16 bit stereo to 32 bit mono
-        int length = e.BytesRecorded;
-        Debug.Assert(length % 2 == 0); // length is even (left and right channels are symmetrical in length)
+        Debug.Assert(source.Length % 2 == 0); // length is even (left and right channels are symmetrical in length)
         int sourceIndex = 0;
         int bufferIndex = 0;
-        while (sourceIndex < length)
+        while (sourceIndex < source.Length)
         {
             short left = source[sourceIndex++];
             short right = source[sourceIndex++];
-
             _convertBuffer[bufferIndex++] = (left + right) / (float)(2 * short.MaxValue);
         }
 
@@ -151,7 +152,7 @@ internal class WindowsAudioRecordingService : AudioRecordingService, IAsyncDispo
         DataAvailable?.Invoke(this, _convertBuffer.AsMemory(0, bufferIndex));
     }
 
-    private void Capture_RecordingStopped(object? sender, StoppedEventArgs? e)
+    private void Capture_RecordingStopped(object? sender, StoppedEventArgs e)
     {
         try
         {
@@ -164,6 +165,11 @@ internal class WindowsAudioRecordingService : AudioRecordingService, IAsyncDispo
                 if (capture is not null)
                     DisposeCapture(capture);
             }
+
+            // Exception might be null even if not annotated as such.
+            Exception? error = (Exception?)e.Exception;
+            if (error is not null)
+                logger.LogError(error, "A capture handler encountered an error.");
         }
         catch (Exception ex)
         {

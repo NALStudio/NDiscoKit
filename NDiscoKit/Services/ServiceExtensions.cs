@@ -8,7 +8,8 @@ public static class ServiceExtensions
     public static void AddNDiscoKitServices(
         this IServiceCollection services,
         Func<IServiceProvider, IAppDataService> appDataServiceFactory,
-        Func<IServiceProvider, AudioRecordingService> audioRecordingServiceFactory
+        Func<IServiceProvider, AudioRecordingService> audioRecordingServiceFactory,
+        Func<IServiceProvider, IPythonService> pythonServiceFactory
     )
     {
         services.AddMudServices(config =>
@@ -20,12 +21,12 @@ public static class ServiceExtensions
         });
 
         services.AddSingleton(appDataServiceFactory);
-
         services.AddSingleton<SettingsService>();
 
-        services.AddSingleton<PythonService>();
-
         services.AddSingleton(audioRecordingServiceFactory);
+
+        services.AddSingleton(pythonServiceFactory);
+        services.AddSingleton<AudioTempoService>();
 
         services.AddSingleton<DiscoService>();
         services.AddSingleton<DiscoLightService>();
